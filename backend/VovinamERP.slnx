@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/VovinamERP.Api/VovinamERP.Api.csproj" />
+    <Project Path="src/VovinamERP.Application/VovinamERP.Application.csproj" />
+    <Project Path="src/VovinamERP.Domain/VovinamERP.Domain.csproj" />
+    <Project Path="src/VovinamERP.Infrastructure/VovinamERP.Infrastructure.csproj" />
+    <Project Path="src/VovinamERP.SharedKernel/VovinamERP.SharedKernel.csproj" />
+  </Folder>
+</Solution>

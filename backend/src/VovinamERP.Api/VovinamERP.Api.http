@@ -1,0 +1,6 @@
+@VovinamERP.Api_HostAddress = http://localhost:5136
+
+GET {{VovinamERP.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
