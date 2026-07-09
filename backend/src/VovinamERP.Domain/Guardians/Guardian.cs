@@ -31,4 +31,22 @@ public sealed class Guardian : AggregateRoot
 
         return Result<Guardian>.Success(new Guardian(tenantId, personId, relationshipNote));
     }
+
+    public Result UpdateRelationshipNote(string? relationshipNote, Guid? userId)
+    {
+        if (IsArchived)
+            return Result.Failure(GuardianErrors.AlreadyArchived);
+
+        RelationshipNote = relationshipNote?.Trim();
+        MarkUpdated(userId);
+
+        return Result.Success();
+    }
+
+    public override void Archive(Guid? userId)
+    {
+        if (IsArchived) return;
+
+        base.Archive(userId);
+    }
 }

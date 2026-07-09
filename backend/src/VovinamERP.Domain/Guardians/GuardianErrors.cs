@@ -9,4 +9,7 @@ public static class GuardianErrors
 
     public static readonly Error PersonRequired =
         new("GUARDIAN_002", "Person is required.");
+
+    public static readonly Error AlreadyArchived =
+        new("GUARDIAN_003", "Guardian has already been archived.");
 }
