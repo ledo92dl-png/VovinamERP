@@ -64,16 +64,31 @@ public sealed class StudentsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<StudentResponse>>> GetAll(CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<StudentResponse>>> GetAll(
+        [FromQuery] Guid? tenantId,
+        [FromQuery] Guid? organizationId,
+        [FromQuery] StudentStatus? status,
+        CancellationToken cancellationToken)
     {
         var query =
             from student in _dbContext.Set<Student>().AsNoTracking()
             join person in _dbContext.Set<Person>().AsNoTracking()
                 on student.PersonId equals person.Id
-            orderby person.FullName
-            select ToResponse(student, person);
+            select new { student, person };
 
-        var students = await query.ToListAsync(cancellationToken);
+        if (tenantId.HasValue)
+            query = query.Where(x => x.student.TenantId == tenantId.Value);
+
+        if (organizationId.HasValue)
+            query = query.Where(x => x.student.OrganizationId == organizationId.Value);
+
+        if (status.HasValue)
+            query = query.Where(x => x.student.Status == status.Value);
+
+        var students = await query
+            .OrderBy(x => x.person.FullName)
+            .Select(x => ToResponse(x.student, x.person))
+            .ToListAsync(cancellationToken);
 
         return Ok(students);
     }
@@ -84,6 +99,31 @@ public sealed class StudentsController : ControllerBase
         var student = await _dbContext.Set<Student>()
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+        if (student is null)
+            return NotFound();
+
+        var person = await _dbContext.Set<Person>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == student.PersonId, cancellationToken);
+
+        if (person is null)
+            return NotFound();
+
+        return Ok(ToResponse(student, person));
+    }
+
+    [HttpGet("by-member-number/{memberNumber}")]
+    public async Task<ActionResult<StudentResponse>> GetByMemberNumber(
+        string memberNumber,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(memberNumber))
+            return BadRequest("Member number is required.");
+
+        var student = await _dbContext.Set<Student>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.MemberNumber == memberNumber, cancellationToken);
 
         if (student is null)
             return NotFound();

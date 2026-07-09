@@ -1,38 +1,35 @@
 # Students API
 
-## Register student
+## Create Student
 
-Endpoint:
+`POST /api/students`
 
-```http
-POST /api/students
-```
+Creates a Person and Student record.
 
-Purpose:
+## List Students
 
-- Create `Person`.
-- Create `Student` linked to that `Person`.
-- Persist both records to PostgreSQL.
+`GET /api/students`
 
-Sample body:
+Optional query parameters:
 
-```json
-{
-  "tenantId": "00000000-0000-0000-0000-000000000000",
-  "organizationId": "00000000-0000-0000-0000-000000000000",
-  "fullName": "Nguyen Van A",
-  "gender": 1,
-  "dateOfBirth": "2012-05-10",
-  "phoneNumber": "0909000000",
-  "email": null,
-  "address": "Dong Nai",
-  "avatarUrl": null,
-  "currentBeltRankId": null,
-  "enrollmentDate": "2026-07-09",
-  "martialName": null,
-  "introducedBy": null,
-  "martialProfileNote": "Nhap mon dot dau tien"
-}
-```
+- `tenantId`
+- `organizationId`
+- `status`
 
-> Note: Replace `tenantId` and `organizationId` with real IDs seeded in the database.
+## Get Student by Id
+
+`GET /api/students/{id}`
+
+Returns one student profile by StudentId.
+
+## Get Student by Member Number
+
+`GET /api/students/by-member-number/{memberNumber}`
+
+Returns one student profile by MemberNumber.
+
+## Archive Student
+
+`DELETE /api/students/{id}`
+
+Archives the student instead of hard deleting.
