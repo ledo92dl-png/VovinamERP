@@ -30,13 +30,13 @@ public sealed class RegisterStudentService
         if (personResult.IsFailure || personResult.Value is null)
             return Result<RegisterStudentDraft>.Failure(personResult.Error);
 
-        var studentResult = Student.Create(
+        var studentResult = Student.Register(
             command.TenantId,
             personResult.Value.Id,
             command.OrganizationId,
+            command.CurrentBeltRankId,
             memberNumber,
             command.EnrollmentDate,
-            command.CurrentBeltRankId,
             command.MartialName,
             command.IntroducedBy,
             command.MartialProfileNote);

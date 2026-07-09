@@ -19,6 +19,9 @@ public static class StudentErrors
     public static readonly Error EnrollmentDateRequired =
         new("STUDENT_005", "Enrollment date is required.");
 
+    public static readonly Error BeltRankRequired =
+        new("STUDENT_006", "Belt rank is required.");
+
     public static readonly Error AlreadyArchived =
-        new("STUDENT_006", "Student has already been archived.");
+        new("STUDENT_007", "Student has already been archived.");
 }
