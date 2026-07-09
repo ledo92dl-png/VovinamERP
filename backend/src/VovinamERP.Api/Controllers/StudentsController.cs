@@ -138,6 +138,65 @@ public sealed class StudentsController : ControllerBase
         return Ok(ToResponse(student, person));
     }
 
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<StudentResponse>> Update(
+        Guid id,
+        [FromBody] UpdateStudentRequest request,
+        CancellationToken cancellationToken)
+    {
+        var student = await _dbContext.Set<Student>()
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+        if (student is null)
+            return NotFound();
+
+        if (student.TenantId != request.TenantId)
+            return BadRequest("Student does not belong to the specified tenant.");
+
+        var person = await _dbContext.Set<Person>()
+            .FirstOrDefaultAsync(x => x.Id == student.PersonId, cancellationToken);
+
+        if (person is null)
+            return NotFound();
+
+        var personResult = person.UpdateBasicInfo(
+            request.FullName,
+            request.Gender,
+            request.DateOfBirth,
+            request.PhoneNumber,
+            request.Email,
+            request.Address,
+            request.AvatarUrl);
+
+        if (personResult.IsFailure)
+            return BadRequest(personResult.Error);
+
+        var martialProfileResult = student.UpdateMartialProfile(
+            request.MartialName,
+            request.IntroducedBy,
+            request.MartialProfileNote,
+            null);
+
+        if (martialProfileResult.IsFailure)
+            return BadRequest(martialProfileResult.Error);
+
+        if (request.CurrentBeltRankId.HasValue && request.CurrentBeltRankId.Value != student.CurrentBeltRankId)
+        {
+            var beltResult = student.ChangeCurrentBelt(
+                request.CurrentBeltRankId.Value,
+                DateOnly.FromDateTime(DateTime.UtcNow),
+                "Updated from student profile.",
+                null);
+
+            if (beltResult.IsFailure)
+                return BadRequest(beltResult.Error);
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return Ok(ToResponse(student, person));
+    }
+
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Archive(Guid id, CancellationToken cancellationToken)
     {

@@ -28,6 +28,26 @@ Returns one student profile by StudentId.
 
 Returns one student profile by MemberNumber.
 
+## Update Student
+
+`PUT /api/students/{id}`
+
+Updates personal information and martial profile fields.
+
+Editable fields:
+
+- `fullName`
+- `gender`
+- `dateOfBirth`
+- `phoneNumber`
+- `email`
+- `address`
+- `avatarUrl`
+- `currentBeltRankId`
+- `martialName`
+- `introducedBy`
+- `martialProfileNote`
+
 ## Archive Student
 
 `DELETE /api/students/{id}`
