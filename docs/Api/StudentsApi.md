@@ -10,11 +10,29 @@ Creates a Person and Student record.
 
 `GET /api/students`
 
-Optional query parameters:
+Returns a paged student list.
+
+Query parameters:
 
 - `tenantId`
 - `organizationId`
+- `currentBeltRankId`
 - `status`
+- `keyword`
+- `sortBy`
+- `descending`
+- `page`
+- `pageSize`
+
+Examples:
+
+`GET /api/students?page=1&pageSize=20`
+
+`GET /api/students?keyword=Nguyen`
+
+`GET /api/students?status=Active`
+
+`GET /api/students?sortBy=enrollmentDate&descending=true`
 
 ## Get Student by Id
 
@@ -33,20 +51,6 @@ Returns one student profile by MemberNumber.
 `PUT /api/students/{id}`
 
 Updates personal information and martial profile fields.
-
-Editable fields:
-
-- `fullName`
-- `gender`
-- `dateOfBirth`
-- `phoneNumber`
-- `email`
-- `address`
-- `avatarUrl`
-- `currentBeltRankId`
-- `martialName`
-- `introducedBy`
-- `martialProfileNote`
 
 ## Archive Student
 

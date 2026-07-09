@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using VovinamERP.Api.Contracts.Common;
 using VovinamERP.Api.Contracts.Students;
 using VovinamERP.Domain.Persons;
 using VovinamERP.Domain.Students;
@@ -64,33 +65,68 @@ public sealed class StudentsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<StudentResponse>>> GetAll(
-        [FromQuery] Guid? tenantId,
-        [FromQuery] Guid? organizationId,
-        [FromQuery] StudentStatus? status,
+    public async Task<ActionResult<PagedResult<StudentResponse>>> GetAll(
+        [AsParameters] StudentListQuery request,
         CancellationToken cancellationToken)
     {
+        var page = request.Page <= 0 ? 1 : request.Page;
+        var pageSize = request.PageSize switch
+        {
+            <= 0 => 20,
+            > 100 => 100,
+            _ => request.PageSize
+        };
+
         var query =
             from student in _dbContext.Set<Student>().AsNoTracking()
             join person in _dbContext.Set<Person>().AsNoTracking()
                 on student.PersonId equals person.Id
             select new { student, person };
 
-        if (tenantId.HasValue)
-            query = query.Where(x => x.student.TenantId == tenantId.Value);
+        if (request.TenantId.HasValue)
+            query = query.Where(x => x.student.TenantId == request.TenantId.Value);
 
-        if (organizationId.HasValue)
-            query = query.Where(x => x.student.OrganizationId == organizationId.Value);
+        if (request.OrganizationId.HasValue)
+            query = query.Where(x => x.student.OrganizationId == request.OrganizationId.Value);
 
-        if (status.HasValue)
-            query = query.Where(x => x.student.Status == status.Value);
+        if (request.CurrentBeltRankId.HasValue)
+            query = query.Where(x => x.student.CurrentBeltRankId == request.CurrentBeltRankId.Value);
+
+        if (request.Status.HasValue)
+            query = query.Where(x => x.student.Status == request.Status.Value);
+
+        if (!string.IsNullOrWhiteSpace(request.Keyword))
+        {
+            var keyword = request.Keyword.Trim().ToLower();
+
+            query = query.Where(x =>
+                x.person.FullName.ToLower().Contains(keyword) ||
+                x.student.MemberNumber.ToLower().Contains(keyword) ||
+                (x.student.MartialName != null && x.student.MartialName.ToLower().Contains(keyword)));
+        }
+
+        query = (request.SortBy?.Trim().ToLower(), request.Descending) switch
+        {
+            ("membernumber", true) => query.OrderByDescending(x => x.student.MemberNumber),
+            ("membernumber", false) => query.OrderBy(x => x.student.MemberNumber),
+            ("enrollmentdate", true) => query.OrderByDescending(x => x.student.EnrollmentDate),
+            ("enrollmentdate", false) => query.OrderBy(x => x.student.EnrollmentDate),
+            ("status", true) => query.OrderByDescending(x => x.student.Status),
+            ("status", false) => query.OrderBy(x => x.student.Status),
+            ("fullname", true) => query.OrderByDescending(x => x.person.FullName),
+            _ => query.OrderBy(x => x.person.FullName)
+        };
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)pageSize);
 
         var students = await query
-            .OrderBy(x => x.person.FullName)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(x => ToResponse(x.student, x.person))
             .ToListAsync(cancellationToken);
 
-        return Ok(students);
+        return Ok(new PagedResult<StudentResponse>(students, page, pageSize, totalCount, totalPages));
     }
 
     [HttpGet("{id:guid}")]
