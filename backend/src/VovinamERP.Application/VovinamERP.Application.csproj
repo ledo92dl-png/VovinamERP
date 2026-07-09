@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\VovinamERP.Domain\VovinamERP.Domain.csproj" />
+    <ProjectReference Include="..\VovinamERP.SharedKernel\VovinamERP.SharedKernel.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
