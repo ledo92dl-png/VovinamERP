@@ -1,3 +1,4 @@
+using MediatR;
 using VovinamERP.Domain.InstructorAssignments;
 
 namespace VovinamERP.Application.InstructorAssignments.AssignInstructorToClass;
@@ -9,4 +10,5 @@ public sealed record AssignInstructorToClassCommand(
     InstructorAssignmentRole Role,
     DateOnly StartDate,
     DateOnly? EndDate,
-    string? Note);
+    string? Note)
+    : IRequest<AssignInstructorToClassResult>;
