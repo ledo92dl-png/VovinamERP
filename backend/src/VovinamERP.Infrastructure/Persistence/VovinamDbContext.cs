@@ -1,5 +1,5 @@
-using VovinamERP.Application.Common.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using VovinamERP.Application.Common.Interfaces;
 using VovinamERP.Domain.Belts;
 using VovinamERP.Domain.Finance;
 using VovinamERP.Domain.Guardians;
@@ -25,6 +25,7 @@ public sealed class VovinamDbContext : DbContext, IUnitOfWork
     public DbSet<Student> Students => Set<Student>();
     public DbSet<Instructor> Instructors => Set<Instructor>();
     public DbSet<Guardian> Guardians => Set<Guardian>();
+    public DbSet<StudentGuardian> StudentGuardians => Set<StudentGuardian>();
     public DbSet<BeltRank> BeltRanks => Set<BeltRank>();
     public DbSet<TrainingClass> TrainingClasses => Set<TrainingClass>();
     public DbSet<TrainingSession> TrainingSessions => Set<TrainingSession>();
