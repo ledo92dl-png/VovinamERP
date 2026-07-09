@@ -23,6 +23,9 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddScoped<VovinamERP.Application.InstructorAssignments.AssignInstructorToClass.AssignInstructorToClassService>();
+builder.Services.AddScoped<
+    VovinamERP.Application.InstructorAssignments.Common.IInstructorAssignmentRepository,
+    VovinamERP.Infrastructure.Repositories.InstructorAssignmentRepository>();
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
