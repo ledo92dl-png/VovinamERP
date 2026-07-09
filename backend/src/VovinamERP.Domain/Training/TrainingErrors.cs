@@ -45,4 +45,10 @@ public static class TrainingErrors
 
     public static readonly Error SessionAlreadyClosed =
         new("TRAINING_014", "Session has already been closed.");
+
+    public static readonly Error EnrollmentAlreadyEnded =
+        new("TRAINING_015", "Enrollment has already ended.");
+
+    public static readonly Error EnrollmentReasonRequired =
+        new("TRAINING_016", "Reason is required for this enrollment action.");
 }

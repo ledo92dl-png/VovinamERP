@@ -2,9 +2,12 @@ namespace VovinamERP.Domain.Training;
 
 public enum EnrollmentStatus
 {
-    Active = 1,
-    Paused = 2,
-    Completed = 3,
-    Left = 4,
-    Archived = 5
+    Trial = 1,
+    Active = 2,
+    Paused = 3,
+    Reserved = 4,
+    Transferred = 5,
+    Completed = 6,
+    Left = 7,
+    Archived = 8
 }

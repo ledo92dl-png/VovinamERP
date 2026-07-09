@@ -15,6 +15,24 @@ public sealed record StudentEnrolledInClassEvent(
     Guid StudentId
 ) : DomainEvent;
 
+public sealed record StudentEnrollmentStatusChangedEvent(
+    Guid EnrollmentId,
+    Guid StudentId,
+    Guid TrainingClassId,
+    EnrollmentStatus OldStatus,
+    EnrollmentStatus NewStatus,
+    string? Reason
+) : DomainEvent;
+
+public sealed record StudentEnrollmentEndedEvent(
+    Guid EnrollmentId,
+    Guid StudentId,
+    Guid TrainingClassId,
+    EnrollmentStatus EndStatus,
+    DateOnly EndDate,
+    string? Reason
+) : DomainEvent;
+
 public sealed record TrainingSessionCreatedEvent(
     Guid TrainingSessionId,
     Guid TrainingClassId,
