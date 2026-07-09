@@ -7,10 +7,10 @@ public sealed class Student : AggregateRoot
 {
     public Guid TenantId { get; private set; }
     public Guid PersonId { get; private set; }
-    public string MemberNumber { get; private set; } = default!;
-
     public Guid OrganizationId { get; private set; }
     public Guid? CurrentBeltRankId { get; private set; }
+
+    public string MemberNumber { get; private set; } = default!;
     public DateOnly EnrollmentDate { get; private set; }
     public StudentStatus Status { get; private set; }
 
@@ -23,35 +23,35 @@ public sealed class Student : AggregateRoot
     private Student(
         Guid tenantId,
         Guid personId,
-        string memberNumber,
         Guid organizationId,
-        Guid? currentBeltRankId,
+        string memberNumber,
         DateOnly enrollmentDate,
+        Guid? currentBeltRankId,
         string? martialName,
         string? introducedBy,
         string? martialProfileNote)
     {
         TenantId = tenantId;
         PersonId = personId;
-        MemberNumber = memberNumber.Trim();
         OrganizationId = organizationId;
-        CurrentBeltRankId = currentBeltRankId;
+        MemberNumber = memberNumber.Trim();
         EnrollmentDate = enrollmentDate;
-        Status = StudentStatus.Active;
+        CurrentBeltRankId = currentBeltRankId;
         MartialName = martialName?.Trim();
         IntroducedBy = introducedBy?.Trim();
         MartialProfileNote = martialProfileNote?.Trim();
+        Status = StudentStatus.Active;
 
-        RaiseDomainEvent(new StudentCreatedEvent(Id, PersonId, MemberNumber));
+        RaiseDomainEvent(new StudentCreatedEvent(Id, TenantId, PersonId, MemberNumber));
     }
 
     public static Result<Student> Create(
         Guid tenantId,
         Guid personId,
-        string memberNumber,
         Guid organizationId,
-        Guid? currentBeltRankId,
+        string memberNumber,
         DateOnly enrollmentDate,
+        Guid? currentBeltRankId,
         string? martialName,
         string? introducedBy,
         string? martialProfileNote)
@@ -62,53 +62,71 @@ public sealed class Student : AggregateRoot
         if (personId == Guid.Empty)
             return Result<Student>.Failure(StudentErrors.PersonRequired);
 
-        if (string.IsNullOrWhiteSpace(memberNumber))
-            return Result<Student>.Failure(StudentErrors.MemberNumberRequired);
-
         if (organizationId == Guid.Empty)
             return Result<Student>.Failure(StudentErrors.OrganizationRequired);
+
+        if (string.IsNullOrWhiteSpace(memberNumber))
+            return Result<Student>.Failure(StudentErrors.MemberNumberRequired);
 
         if (enrollmentDate == default)
             return Result<Student>.Failure(StudentErrors.EnrollmentDateRequired);
 
-        return Result<Student>.Success(new Student(
-            tenantId,
-            personId,
-            memberNumber,
-            organizationId,
-            currentBeltRankId,
-            enrollmentDate,
-            martialName,
-            introducedBy,
-            martialProfileNote));
+        return Result<Student>.Success(
+            new Student(
+                tenantId,
+                personId,
+                organizationId,
+                memberNumber,
+                enrollmentDate,
+                currentBeltRankId,
+                martialName,
+                introducedBy,
+                martialProfileNote));
     }
 
     public Result UpdateMartialProfile(
-        Guid? currentBeltRankId,
         string? martialName,
         string? introducedBy,
-        string? martialProfileNote,
-        Guid? userId)
+        string? martialProfileNote)
     {
         if (IsArchived)
             return Result.Failure(StudentErrors.AlreadyArchived);
 
-        CurrentBeltRankId = currentBeltRankId;
         MartialName = martialName?.Trim();
         IntroducedBy = introducedBy?.Trim();
         MartialProfileNote = martialProfileNote?.Trim();
 
-        MarkUpdated(userId);
-        RaiseDomainEvent(new StudentUpdatedEvent(Id));
+        MarkUpdated(null);
+        RaiseDomainEvent(new StudentMartialProfileUpdatedEvent(Id));
 
         return Result.Success();
     }
 
-    public void ChangeStatus(StudentStatus status, Guid? userId)
+    public Result ChangeStatus(StudentStatus status)
     {
+        if (IsArchived)
+            return Result.Failure(StudentErrors.AlreadyArchived);
+
         Status = status;
-        MarkUpdated(userId);
-        RaiseDomainEvent(new StudentStatusChangedEvent(Id, status));
+        MarkUpdated(null);
+        RaiseDomainEvent(new StudentStatusChangedEvent(Id, Status));
+
+        return Result.Success();
+    }
+
+    public Result ChangeBelt(Guid beltRankId)
+    {
+        if (IsArchived)
+            return Result.Failure(StudentErrors.AlreadyArchived);
+
+        if (beltRankId == Guid.Empty)
+            return Result.Failure(new Error("STUDENT_007", "Belt rank is required."));
+
+        CurrentBeltRankId = beltRankId;
+        MarkUpdated(null);
+        RaiseDomainEvent(new StudentBeltChangedEvent(Id, beltRankId));
+
+        return Result.Success();
     }
 
     public override void Archive(Guid? userId)

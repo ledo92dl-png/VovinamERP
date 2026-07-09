@@ -4,15 +4,25 @@ namespace VovinamERP.Domain.Students;
 
 public sealed record StudentCreatedEvent(
     Guid StudentId,
+    Guid TenantId,
     Guid PersonId,
     string MemberNumber
 ) : DomainEvent;
 
-public sealed record StudentUpdatedEvent(Guid StudentId) : DomainEvent;
+public sealed record StudentMartialProfileUpdatedEvent(
+    Guid StudentId
+) : DomainEvent;
 
 public sealed record StudentStatusChangedEvent(
     Guid StudentId,
     StudentStatus Status
 ) : DomainEvent;
 
-public sealed record StudentArchivedEvent(Guid StudentId) : DomainEvent;
+public sealed record StudentBeltChangedEvent(
+    Guid StudentId,
+    Guid BeltRankId
+) : DomainEvent;
+
+public sealed record StudentArchivedEvent(
+    Guid StudentId
+) : DomainEvent;

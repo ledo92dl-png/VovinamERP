@@ -10,11 +10,11 @@ public static class StudentErrors
     public static readonly Error PersonRequired =
         new("STUDENT_002", "Person is required.");
 
-    public static readonly Error MemberNumberRequired =
-        new("STUDENT_003", "Member number is required.");
-
     public static readonly Error OrganizationRequired =
-        new("STUDENT_004", "Organization is required.");
+        new("STUDENT_003", "Organization is required.");
+
+    public static readonly Error MemberNumberRequired =
+        new("STUDENT_004", "Member number is required.");
 
     public static readonly Error EnrollmentDateRequired =
         new("STUDENT_005", "Enrollment date is required.");

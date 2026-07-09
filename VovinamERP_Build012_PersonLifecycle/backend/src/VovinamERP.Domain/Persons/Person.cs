@@ -9,11 +9,9 @@ public sealed class Person : AggregateRoot
 
     public string Code { get; private set; } = default!;
     public string FullName { get; private set; } = default!;
-    public string? NickName { get; private set; }
     public Gender Gender { get; private set; }
     public DateOnly? DateOfBirth { get; private set; }
 
-    public string? CitizenId { get; private set; }
     public string? PhoneNumber { get; private set; }
     public string? Email { get; private set; }
     public string? Address { get; private set; }
@@ -25,10 +23,8 @@ public sealed class Person : AggregateRoot
         Guid tenantId,
         string code,
         string fullName,
-        string? nickName,
         Gender gender,
         DateOnly? dateOfBirth,
-        string? citizenId,
         string? phoneNumber,
         string? email,
         string? address,
@@ -37,10 +33,8 @@ public sealed class Person : AggregateRoot
         TenantId = tenantId;
         Code = code.Trim();
         FullName = fullName.Trim();
-        NickName = nickName?.Trim();
         Gender = gender;
         DateOfBirth = dateOfBirth;
-        CitizenId = citizenId?.Trim();
         PhoneNumber = phoneNumber?.Trim();
         Email = email?.Trim();
         Address = address?.Trim();
@@ -53,10 +47,8 @@ public sealed class Person : AggregateRoot
         Guid tenantId,
         string code,
         string fullName,
-        string? nickName,
         Gender gender,
         DateOnly? dateOfBirth,
-        string? citizenId,
         string? phoneNumber,
         string? email,
         string? address,
@@ -71,31 +63,18 @@ public sealed class Person : AggregateRoot
         if (string.IsNullOrWhiteSpace(fullName))
             return Result<Person>.Failure(PersonErrors.FullNameRequired);
 
-        return Result<Person>.Success(new Person(
-            tenantId,
-            code,
-            fullName,
-            nickName,
-            gender,
-            dateOfBirth,
-            citizenId,
-            phoneNumber,
-            email,
-            address,
-            avatarUrl));
+        return Result<Person>.Success(
+            new Person(tenantId, code, fullName, gender, dateOfBirth, phoneNumber, email, address, avatarUrl));
     }
 
     public Result UpdateBasicInfo(
         string fullName,
-        string? nickName,
         Gender gender,
         DateOnly? dateOfBirth,
-        string? citizenId,
         string? phoneNumber,
         string? email,
         string? address,
-        string? avatarUrl,
-        Guid? userId)
+        string? avatarUrl)
     {
         if (IsArchived)
             return Result.Failure(PersonErrors.AlreadyArchived);
@@ -104,16 +83,14 @@ public sealed class Person : AggregateRoot
             return Result.Failure(PersonErrors.FullNameRequired);
 
         FullName = fullName.Trim();
-        NickName = nickName?.Trim();
         Gender = gender;
         DateOfBirth = dateOfBirth;
-        CitizenId = citizenId?.Trim();
         PhoneNumber = phoneNumber?.Trim();
         Email = email?.Trim();
         Address = address?.Trim();
         AvatarUrl = avatarUrl?.Trim();
 
-        MarkUpdated(userId);
+        MarkUpdated(null);
         RaiseDomainEvent(new PersonUpdatedEvent(Id));
 
         return Result.Success();

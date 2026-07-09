@@ -18,7 +18,10 @@ public sealed class Guardian : AggregateRoot
         RelationshipNote = relationshipNote?.Trim();
     }
 
-    public static Result<Guardian> Create(Guid tenantId, Guid personId, string? relationshipNote)
+    public static Result<Guardian> Create(
+        Guid tenantId,
+        Guid personId,
+        string? relationshipNote)
     {
         if (tenantId == Guid.Empty)
             return Result<Guardian>.Failure(GuardianErrors.TenantRequired);

@@ -7,44 +7,41 @@ public sealed class Instructor : AggregateRoot
 {
     public Guid TenantId { get; private set; }
     public Guid PersonId { get; private set; }
-    public string InstructorNumber { get; private set; } = default!;
     public Guid OrganizationId { get; private set; }
+
+    public string InstructorNumber { get; private set; } = default!;
     public Guid? CurrentBeltRankId { get; private set; }
     public InstructorStatus Status { get; private set; }
-    public string? ProfessionalTitle { get; private set; }
-    public string? Note { get; private set; }
+    public string? ProfessionalNote { get; private set; }
 
     private Instructor() { }
 
     private Instructor(
         Guid tenantId,
         Guid personId,
-        string instructorNumber,
         Guid organizationId,
+        string instructorNumber,
         Guid? currentBeltRankId,
-        string? professionalTitle,
-        string? note)
+        string? professionalNote)
     {
         TenantId = tenantId;
         PersonId = personId;
-        InstructorNumber = instructorNumber.Trim();
         OrganizationId = organizationId;
+        InstructorNumber = instructorNumber.Trim();
         CurrentBeltRankId = currentBeltRankId;
-        ProfessionalTitle = professionalTitle?.Trim();
-        Note = note?.Trim();
+        ProfessionalNote = professionalNote?.Trim();
         Status = InstructorStatus.Active;
 
-        RaiseDomainEvent(new InstructorCreatedEvent(Id, PersonId, InstructorNumber));
+        RaiseDomainEvent(new InstructorCreatedEvent(Id, TenantId, PersonId, InstructorNumber));
     }
 
     public static Result<Instructor> Create(
         Guid tenantId,
         Guid personId,
-        string instructorNumber,
         Guid organizationId,
+        string instructorNumber,
         Guid? currentBeltRankId,
-        string? professionalTitle,
-        string? note)
+        string? professionalNote)
     {
         if (tenantId == Guid.Empty)
             return Result<Instructor>.Failure(InstructorErrors.TenantRequired);
@@ -52,20 +49,14 @@ public sealed class Instructor : AggregateRoot
         if (personId == Guid.Empty)
             return Result<Instructor>.Failure(InstructorErrors.PersonRequired);
 
-        if (string.IsNullOrWhiteSpace(instructorNumber))
-            return Result<Instructor>.Failure(InstructorErrors.InstructorNumberRequired);
-
         if (organizationId == Guid.Empty)
             return Result<Instructor>.Failure(InstructorErrors.OrganizationRequired);
 
-        return Result<Instructor>.Success(new Instructor(
-            tenantId,
-            personId,
-            instructorNumber,
-            organizationId,
-            currentBeltRankId,
-            professionalTitle,
-            note));
+        if (string.IsNullOrWhiteSpace(instructorNumber))
+            return Result<Instructor>.Failure(InstructorErrors.InstructorNumberRequired);
+
+        return Result<Instructor>.Success(
+            new Instructor(tenantId, personId, organizationId, instructorNumber, currentBeltRankId, professionalNote));
     }
 
     public override void Archive(Guid? userId)
