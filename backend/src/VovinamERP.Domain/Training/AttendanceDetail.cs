@@ -10,31 +10,61 @@ public sealed class AttendanceDetail : AggregateRoot
     public Guid StudentId { get; private set; }
     public AttendanceStatus Status { get; private set; }
     public string? Note { get; private set; }
+    public AttendanceMethod Method { get; private set; }
 
+    public AttendanceSource Source { get; private set; }
+
+    public DateTimeOffset MarkedAt { get; private set; }
+
+    public Guid MarkedByUserId { get; private set; }
+
+    public bool IsBackfilled { get; private set; }
     private AttendanceDetail() { }
 
     private AttendanceDetail(
-        Guid tenantId,
-        Guid attendanceRecordId,
-        Guid studentId,
-        AttendanceStatus status,
-        string? note)
-    {
-        TenantId = tenantId;
-        AttendanceRecordId = attendanceRecordId;
-        StudentId = studentId;
-        Status = status;
-        Note = note?.Trim();
+    Guid tenantId,
+    Guid attendanceRecordId,
+    Guid studentId,
+    AttendanceStatus status,
+    AttendanceMethod method,
+    AttendanceSource source,
+    Guid markedByUserId,
+    bool isBackfilled,
+    string? note)
+{
+    TenantId = tenantId;
+    AttendanceRecordId = attendanceRecordId;
+    StudentId = studentId;
+    Status = status;
 
-        RaiseDomainEvent(new AttendanceDetailMarkedEvent(Id, AttendanceRecordId, StudentId, Status));
+    Method = method;
+    Source = source;
+
+    MarkedByUserId = markedByUserId;
+    MarkedAt = DateTimeOffset.UtcNow;
+    IsBackfilled = isBackfilled;
+
+    Note = note?.Trim();
+
+    RaiseDomainEvent(
+        new AttendanceDetailMarkedEvent(
+            Id,
+            AttendanceRecordId,
+            StudentId,
+            Status));
+
     }
 
     public static Result<AttendanceDetail> Create(
-        Guid tenantId,
-        Guid attendanceRecordId,
-        Guid studentId,
-        AttendanceStatus status,
-        string? note)
+    Guid tenantId,
+    Guid attendanceRecordId,
+    Guid studentId,
+    AttendanceStatus status,
+    AttendanceMethod method,
+    AttendanceSource source,
+    Guid markedByUserId,
+    bool isBackfilled,
+    string? note)
     {
         if (tenantId == Guid.Empty)
             return Result<AttendanceDetail>.Failure(TrainingErrors.TenantRequired);
@@ -45,19 +75,51 @@ public sealed class AttendanceDetail : AggregateRoot
         if (studentId == Guid.Empty)
             return Result<AttendanceDetail>.Failure(TrainingErrors.StudentRequired);
 
-        return Result<AttendanceDetail>.Success(new AttendanceDetail(tenantId, attendanceRecordId, studentId, status, note));
+        return Result<AttendanceDetail>.Success(
+    new AttendanceDetail(
+        tenantId,
+        attendanceRecordId,
+        studentId,
+        status,
+        method,
+        source,
+        markedByUserId,
+        isBackfilled,
+        note));
     }
 
-    public Result UpdateStatus(AttendanceStatus status, string? note)
-    {
-        if (IsArchived)
-            return Result.Failure(TrainingErrors.AlreadyArchived);
+    public Result UpdateStatus(
+    AttendanceStatus status,
+    AttendanceMethod method,
+    AttendanceSource source,
+    Guid markedByUserId,
+    bool isBackfilled,
+    string? note)
+{
+    if (IsArchived)
+        return Result.Failure(TrainingErrors.AlreadyArchived);
 
-        Status = status;
-        Note = note?.Trim();
-        MarkUpdated(null);
-        RaiseDomainEvent(new AttendanceDetailMarkedEvent(Id, AttendanceRecordId, StudentId, Status));
+    Status = status;
+    Method = method;
+    Source = source;
 
-        return Result.Success();
-    }
+    MarkedByUserId = markedByUserId;
+    MarkedAt = DateTimeOffset.UtcNow;
+    IsBackfilled = isBackfilled;
+
+    Note = note?.Trim();
+
+    MarkUpdated(markedByUserId);
+
+    RaiseDomainEvent(
+        new AttendanceDetailUpdatedEvent(
+            Id,
+            AttendanceRecordId,
+            StudentId,
+            Status,
+            Method,
+            Source));
+
+    return Result.Success();
+}
 }
