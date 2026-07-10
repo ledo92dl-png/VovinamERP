@@ -1,3 +1,4 @@
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using VovinamERP.Api.Contracts.InstructorAssignments;
 using VovinamERP.Application.InstructorAssignments.AssignInstructorToClass;
@@ -8,11 +9,11 @@ namespace VovinamERP.Api.Controllers;
 [Route("api/training-classes/{trainingClassId:guid}/instructors")]
 public sealed class InstructorAssignmentsController : ControllerBase
 {
-    private readonly AssignInstructorToClassService _service;
+    private readonly ISender _sender;
 
-    public InstructorAssignmentsController(AssignInstructorToClassService service)
+    public InstructorAssignmentsController(ISender sender)
     {
-        _service = service;
+        _sender = sender;
     }
 
     [HttpPost]
@@ -30,7 +31,7 @@ public sealed class InstructorAssignmentsController : ControllerBase
             request.EndDate,
             request.Note);
 
-        var result = await _service.HandleAsync(command, cancellationToken);
+        var result = await _sender.Send(command, cancellationToken);
 
         return Ok(result);
     }
