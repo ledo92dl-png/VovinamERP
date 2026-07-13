@@ -21,7 +21,9 @@ public static class InfrastructureServiceCollectionExtensions
         });
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<VovinamDbContext>());
-
+        services.AddScoped<
+            VovinamERP.Application.Attendance.Common.IAttendanceRepository,
+            VovinamERP.Infrastructure.Repositories.AttendanceRepository>();
         return services;
     }
 }

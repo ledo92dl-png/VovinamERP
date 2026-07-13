@@ -22,10 +22,6 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.Services.AddScoped<VovinamERP.Application.InstructorAssignments.AssignInstructorToClass.AssignInstructorToClassService>();
-builder.Services.AddScoped<
-    VovinamERP.Application.InstructorAssignments.Common.IInstructorAssignmentRepository,
-    VovinamERP.Infrastructure.Repositories.InstructorAssignmentRepository>();
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -42,7 +38,7 @@ app.MapGet("/", () => Results.Ok(new
 {
     name = "VovinamERP API",
     status = "Running",
-    version = "0.26.0"
+    version = "0.44.0"
 }));
 
 app.Run();
