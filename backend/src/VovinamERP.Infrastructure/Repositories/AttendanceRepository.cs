@@ -25,6 +25,20 @@ public sealed class AttendanceRepository : IAttendanceRepository
                 cancellationToken);
     }
 
+    public async Task<AttendanceRecord?> GetByIdAsync(
+        Guid attendanceRecordId,
+        Guid tenantId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Set<AttendanceRecord>()
+            .AsNoTracking()
+            .Include(x => x.Details)
+            .FirstOrDefaultAsync(
+                x => x.Id == attendanceRecordId &&
+                     x.TenantId == tenantId,
+                cancellationToken);
+    }
+
     public async Task AddRecordAsync(
         AttendanceRecord attendanceRecord,
         CancellationToken cancellationToken = default)

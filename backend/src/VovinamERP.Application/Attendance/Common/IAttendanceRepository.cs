@@ -8,6 +8,11 @@ public interface IAttendanceRepository
         Guid attendanceRecordId,
         CancellationToken cancellationToken = default);
 
+    Task<AttendanceRecord?> GetByIdAsync(
+        Guid attendanceRecordId,
+        Guid tenantId,
+        CancellationToken cancellationToken = default);
+
     Task AddRecordAsync(
         AttendanceRecord attendanceRecord,
         CancellationToken cancellationToken = default);

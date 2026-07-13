@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using VovinamERP.Api.Contracts.Attendance;
 using VovinamERP.Application.Attendance.MarkStudentAttendance;
 using VovinamERP.Application.Attendance.UpdateStudentAttendance;
-
+using VovinamERP.Application.Attendance.GetAttendanceRecord;
 namespace VovinamERP.Api.Controllers;
 
 [ApiController]
@@ -16,7 +16,22 @@ public sealed class AttendanceController : ControllerBase
     {
         _sender = sender;
     }
+    [HttpGet("{attendanceRecordId:guid}")]
+public async Task<IActionResult> GetAttendanceRecord(
+    Guid attendanceRecordId,
+    [FromQuery] Guid tenantId,
+    CancellationToken cancellationToken)
+{
+    var query = new GetAttendanceRecordQuery(
+        attendanceRecordId,
+        tenantId);
 
+    var result = await _sender.Send(
+        query,
+        cancellationToken);
+
+    return Ok(result);
+}
     [HttpPost("{attendanceRecordId:guid}/students")]
     public async Task<IActionResult> MarkStudentAttendance(
         Guid attendanceRecordId,
