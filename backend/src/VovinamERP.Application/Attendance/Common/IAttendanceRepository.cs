@@ -13,6 +13,18 @@ public interface IAttendanceRepository
         Guid tenantId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<AttendanceRecord>> GetPagedAsync(
+        Guid tenantId,
+        Guid? trainingSessionId,
+        int skip,
+        int take,
+        CancellationToken cancellationToken = default);
+
+    Task<int> CountAsync(
+        Guid tenantId,
+        Guid? trainingSessionId,
+        CancellationToken cancellationToken = default);
+
     Task AddRecordAsync(
         AttendanceRecord attendanceRecord,
         CancellationToken cancellationToken = default);

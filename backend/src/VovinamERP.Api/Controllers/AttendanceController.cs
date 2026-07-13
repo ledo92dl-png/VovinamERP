@@ -4,6 +4,7 @@ using VovinamERP.Api.Contracts.Attendance;
 using VovinamERP.Application.Attendance.MarkStudentAttendance;
 using VovinamERP.Application.Attendance.UpdateStudentAttendance;
 using VovinamERP.Application.Attendance.GetAttendanceRecord;
+using VovinamERP.Application.Attendance.GetAttendanceRecords;
 namespace VovinamERP.Api.Controllers;
 
 [ApiController]
@@ -16,15 +17,19 @@ public sealed class AttendanceController : ControllerBase
     {
         _sender = sender;
     }
-    [HttpGet("{attendanceRecordId:guid}")]
-public async Task<IActionResult> GetAttendanceRecord(
-    Guid attendanceRecordId,
+    [HttpGet]
+public async Task<IActionResult> GetAttendanceRecords(
     [FromQuery] Guid tenantId,
-    CancellationToken cancellationToken)
+    [FromQuery] Guid? trainingSessionId,
+    [FromQuery] int pageNumber = 1,
+    [FromQuery] int pageSize = 20,
+    CancellationToken cancellationToken = default)
 {
-    var query = new GetAttendanceRecordQuery(
-        attendanceRecordId,
-        tenantId);
+    var query = new GetAttendanceRecordsQuery(
+        tenantId,
+        trainingSessionId,
+        pageNumber,
+        pageSize);
 
     var result = await _sender.Send(
         query,

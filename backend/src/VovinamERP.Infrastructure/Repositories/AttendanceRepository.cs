@@ -9,7 +9,49 @@ public sealed class AttendanceRepository : IAttendanceRepository
 {
     private readonly VovinamDbContext _context;
 
-    public AttendanceRepository(VovinamDbContext context)
+    public async Task<IReadOnlyList<AttendanceRecord>> GetPagedAsync(
+    Guid tenantId,
+    Guid? trainingSessionId,
+    int skip,
+    int take,
+    CancellationToken cancellationToken = default)
+{
+    var query = _context.Set<AttendanceRecord>()
+        .AsNoTracking()
+        .Include(x => x.Details)
+        .Where(x => x.TenantId == tenantId);
+
+    if (trainingSessionId.HasValue)
+    {
+        query = query.Where(
+            x => x.TrainingSessionId == trainingSessionId.Value);
+    }
+
+    return await query
+    .OrderByDescending(x => x.Id)
+    .Skip(skip)
+    .Take(take)
+    .ToListAsync(cancellationToken);
+}
+
+public async Task<int> CountAsync(
+    Guid tenantId,
+    Guid? trainingSessionId,
+    CancellationToken cancellationToken = default)
+{
+    var query = _context.Set<AttendanceRecord>()
+        .AsNoTracking()
+        .Where(x => x.TenantId == tenantId);
+
+    if (trainingSessionId.HasValue)
+    {
+        query = query.Where(
+            x => x.TrainingSessionId == trainingSessionId.Value);
+    }
+
+    return await query.CountAsync(cancellationToken);
+}
+public AttendanceRepository(VovinamDbContext context)
     {
         _context = context;
     }
