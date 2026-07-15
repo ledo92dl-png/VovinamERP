@@ -8,7 +8,11 @@ public sealed class AttendanceRecord : AggregateRoot
     public Guid TenantId { get; private set; }
     public Guid TrainingSessionId { get; private set; }
     public Guid CreatedByUserId { get; private set; }
+    public AttendanceRecordStatus Status { get; private set; }
 
+    public DateTimeOffset? CompletedAt { get; private set; }
+
+    public Guid? CompletedByUserId { get; private set; }
     private readonly List<AttendanceDetail> _details = new();
 
     public IReadOnlyCollection<AttendanceDetail> Details => _details.AsReadOnly();
@@ -25,7 +29,7 @@ public sealed class AttendanceRecord : AggregateRoot
         TenantId = tenantId;
         TrainingSessionId = trainingSessionId;
         CreatedByUserId = createdByUserId;
-
+        Status = AttendanceRecordStatus.Open;
         RaiseDomainEvent(
             new AttendanceRecordCreatedEvent(
                 Id,
@@ -67,7 +71,13 @@ public sealed class AttendanceRecord : AggregateRoot
 
         var detail = _details.FirstOrDefault(
             x => x.StudentId == studentId && !x.IsArchived);
-
+if (Status == AttendanceRecordStatus.Completed)
+{
+    return Result.Failure(
+        new Error(
+            "TRAINING_022",
+            "Attendance record has been completed."));
+}
         if (detail is null)
         {
             return Result.Failure(
@@ -97,7 +107,13 @@ public sealed class AttendanceRecord : AggregateRoot
         if (IsArchived)
             return Result<AttendanceDetail>.Failure(
                 TrainingErrors.AlreadyArchived);
-
+if (Status == AttendanceRecordStatus.Completed)
+{
+    return Result<AttendanceDetail>.Failure(
+        new Error(
+            "TRAINING_022",
+            "Attendance record has been completed."));
+}
         if (studentId == Guid.Empty)
             return Result<AttendanceDetail>.Failure(
                 TrainingErrors.StudentRequired);
@@ -138,4 +154,32 @@ public sealed class AttendanceRecord : AggregateRoot
         return _details.Any(
             x => x.StudentId == studentId && !x.IsArchived);
     }
+    public Result Complete(Guid completedByUserId)
+{
+    if (IsArchived)
+        return Result.Failure(TrainingErrors.AlreadyArchived);
+
+    if (Status == AttendanceRecordStatus.Completed)
+    {
+        return Result.Failure(
+            new Error(
+                "TRAINING_021",
+                "Attendance record has already been completed."));
+    }
+
+    Status = AttendanceRecordStatus.Completed;
+    CompletedAt = DateTimeOffset.UtcNow;
+    CompletedByUserId = completedByUserId;
+
+    MarkUpdated(completedByUserId);
+
+    RaiseDomainEvent(
+        new AttendanceRecordCompletedEvent(
+            Id,
+            TrainingSessionId,
+            completedByUserId,
+            CompletedAt.Value));
+
+    return Result.Success();
+}
 }

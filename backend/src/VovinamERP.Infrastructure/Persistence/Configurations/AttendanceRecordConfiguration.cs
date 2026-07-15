@@ -36,5 +36,13 @@ public sealed class AttendanceRecordConfiguration
 
         builder.Navigation(x => x.Details)
             .UsePropertyAccessMode(PropertyAccessMode.Field);
+            builder.Property(x => x.Status)
+    .HasConversion<string>()
+    .HasMaxLength(32)
+    .IsRequired();
+
+builder.Property(x => x.CompletedAt);
+
+builder.Property(x => x.CompletedByUserId);
     }
 }

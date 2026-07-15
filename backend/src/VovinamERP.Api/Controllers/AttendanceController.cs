@@ -6,7 +6,7 @@ using VovinamERP.Application.Attendance.GetAttendanceRecord;
 using VovinamERP.Application.Attendance.GetAttendanceRecords;
 using VovinamERP.Application.Attendance.MarkStudentAttendance;
 using VovinamERP.Application.Attendance.UpdateStudentAttendance;
-
+using VovinamERP.Application.Attendance.CompleteAttendanceRecord;
 namespace VovinamERP.Api.Controllers;
 
 [ApiController]
@@ -140,4 +140,30 @@ public async Task<IActionResult> CreateAttendanceRecord(
 
         return Ok(result);
     }
+    [HttpPost("{attendanceRecordId:guid}/complete")]
+public async Task<IActionResult> CompleteAttendanceRecord(
+    Guid attendanceRecordId,
+    CompleteAttendanceRecordRequest request,
+    CancellationToken cancellationToken)
+{
+    var command = new CompleteAttendanceRecordCommand(
+        request.TenantId,
+        attendanceRecordId,
+        request.CompletedByUserId);
+
+    var result = await _sender.Send(
+        command,
+        cancellationToken);
+
+    if (result.IsFailure || result.Value is null)
+    {
+        return BadRequest(new
+        {
+            Code = result.Error.Code,
+            Message = result.Error.Message
+        });
+    }
+
+    return Ok(result.Value);
+}
 }
