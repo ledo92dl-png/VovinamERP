@@ -23,7 +23,9 @@ public static class RepositoryServiceCollectionExtensions
         services.AddScoped<
             IInstructorAssignmentRepository,
             InstructorAssignmentRepository>();
-
+        services.AddScoped<
+    VovinamERP.Application.Students.Common.IStudentRepository,
+    VovinamERP.Infrastructure.Repositories.StudentRepository>();
         return services;
     }
 }

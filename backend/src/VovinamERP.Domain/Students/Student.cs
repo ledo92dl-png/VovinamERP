@@ -13,7 +13,7 @@ public sealed class Student : AggregateRoot
     public string MemberNumber { get; private set; } = default!;
     public DateOnly EnrollmentDate { get; private set; }
     public StudentStatus Status { get; private set; }
-
+    public string QrToken { get; private set; } = default!;
     public string? MartialName { get; private set; }
     public string? IntroducedBy { get; private set; }
     public string? MartialProfileNote { get; private set; }
@@ -40,11 +40,18 @@ public sealed class Student : AggregateRoot
         MemberNumber = memberNumber.Trim();
         EnrollmentDate = enrollmentDate;
         Status = StudentStatus.Active;
+        QrToken = GenerateQrToken();
         MartialName = martialName?.Trim();
         IntroducedBy = introducedBy?.Trim();
         MartialProfileNote = martialProfileNote?.Trim();
 
-        RaiseDomainEvent(new StudentRegisteredEvent(Id, TenantId, PersonId, MemberNumber));
+        RaiseDomainEvent(new StudentRegisteredEvent(
+            Id, TenantId, PersonId, MemberNumber));
+        RaiseDomainEvent(
+    new StudentQrCodeIssuedEvent(
+        Id,
+        TenantId,
+        QrToken));
     }
 
     public static Result<Student> Register(
@@ -138,7 +145,29 @@ public sealed class Student : AggregateRoot
 
         return Result.Success();
     }
+    public Result RegenerateQrToken(Guid? userId)
+{
+    if (IsArchived)
+        return Result.Failure(StudentErrors.AlreadyArchived);
 
+    QrToken = GenerateQrToken();
+
+    MarkUpdated(userId);
+
+    RaiseDomainEvent(
+        new StudentQrCodeIssuedEvent(
+            Id,
+            TenantId,
+            QrToken));
+
+    return Result.Success();
+}
+    private static string GenerateQrToken()
+{
+    return Convert
+        .ToHexString(Guid.NewGuid().ToByteArray())
+        .ToLowerInvariant();
+}
     public override void Archive(Guid? userId)
     {
         if (IsArchived) return;
