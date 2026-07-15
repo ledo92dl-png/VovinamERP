@@ -1,10 +1,12 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using VovinamERP.Api.Contracts.Attendance;
-using VovinamERP.Application.Attendance.MarkStudentAttendance;
-using VovinamERP.Application.Attendance.UpdateStudentAttendance;
+using VovinamERP.Application.Attendance.CreateAttendanceRecord;
 using VovinamERP.Application.Attendance.GetAttendanceRecord;
 using VovinamERP.Application.Attendance.GetAttendanceRecords;
+using VovinamERP.Application.Attendance.MarkStudentAttendance;
+using VovinamERP.Application.Attendance.UpdateStudentAttendance;
+
 namespace VovinamERP.Api.Controllers;
 
 [ApiController]
@@ -17,26 +19,69 @@ public sealed class AttendanceController : ControllerBase
     {
         _sender = sender;
     }
+
+    [HttpPost]
+    public async Task<IActionResult> CreateAttendanceRecord(
+        CreateAttendanceRecordRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new CreateAttendanceRecordCommand(
+            request.TenantId,
+            request.TrainingSessionId,
+            request.CreatedByUserId);
+
+        var result = await _sender.Send(
+            command,
+            cancellationToken);
+
+        return CreatedAtAction(
+            nameof(GetAttendanceRecord),
+            new
+            {
+                attendanceRecordId = result.AttendanceRecordId,
+                tenantId = result.TenantId
+            },
+            result);
+    }
+
     [HttpGet]
-public async Task<IActionResult> GetAttendanceRecords(
-    [FromQuery] Guid tenantId,
-    [FromQuery] Guid? trainingSessionId,
-    [FromQuery] int pageNumber = 1,
-    [FromQuery] int pageSize = 20,
-    CancellationToken cancellationToken = default)
-{
-    var query = new GetAttendanceRecordsQuery(
-        tenantId,
-        trainingSessionId,
-        pageNumber,
-        pageSize);
+    public async Task<IActionResult> GetAttendanceRecords(
+        [FromQuery] Guid tenantId,
+        [FromQuery] Guid? trainingSessionId,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var query = new GetAttendanceRecordsQuery(
+            tenantId,
+            trainingSessionId,
+            pageNumber,
+            pageSize);
 
-    var result = await _sender.Send(
-        query,
-        cancellationToken);
+        var result = await _sender.Send(
+            query,
+            cancellationToken);
 
-    return Ok(result);
-}
+        return Ok(result);
+    }
+
+    [HttpGet("{attendanceRecordId:guid}")]
+    public async Task<IActionResult> GetAttendanceRecord(
+        Guid attendanceRecordId,
+        [FromQuery] Guid tenantId,
+        CancellationToken cancellationToken)
+    {
+        var query = new GetAttendanceRecordQuery(
+            attendanceRecordId,
+            tenantId);
+
+        var result = await _sender.Send(
+            query,
+            cancellationToken);
+
+        return Ok(result);
+    }
+
     [HttpPost("{attendanceRecordId:guid}/students")]
     public async Task<IActionResult> MarkStudentAttendance(
         Guid attendanceRecordId,
