@@ -4,6 +4,11 @@ namespace VovinamERP.Application.Attendance.Common;
 
 public interface IAttendanceRepository
 {
+    Task<bool> ExistsForTrainingSessionAsync(
+    Guid tenantId,
+    Guid trainingSessionId,
+    CancellationToken cancellationToken = default);
+    
     Task<AttendanceRecord?> GetRecordByIdAsync(
         Guid attendanceRecordId,
         CancellationToken cancellationToken = default);

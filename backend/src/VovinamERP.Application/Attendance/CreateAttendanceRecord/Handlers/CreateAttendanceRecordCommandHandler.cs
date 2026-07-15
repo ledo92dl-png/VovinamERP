@@ -1,24 +1,43 @@
 using MediatR;
 using VovinamERP.Application.Attendance.Common;
+using VovinamERP.Application.Common.Interfaces;
+using VovinamERP.SharedKernel.Results;
 using VovinamERP.Domain.Training;
 
 namespace VovinamERP.Application.Attendance.CreateAttendanceRecord.Handlers;
 
 public sealed class CreateAttendanceRecordCommandHandler
-    : IRequestHandler<CreateAttendanceRecordCommand, CreateAttendanceRecordResult>
+    : IRequestHandler<CreateAttendanceRecordCommand, Result<CreateAttendanceRecordResult>>
 {
     private readonly IAttendanceRepository _attendanceRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
     public CreateAttendanceRecordCommandHandler(
-        IAttendanceRepository attendanceRepository)
+        IAttendanceRepository attendanceRepository,
+        IUnitOfWork unitOfWork)
     {
         _attendanceRepository = attendanceRepository;
+        _unitOfWork = unitOfWork;
     }
 
-    public async Task<CreateAttendanceRecordResult> Handle(
+    public async Task<Result<CreateAttendanceRecordResult>> Handle(
         CreateAttendanceRecordCommand request,
         CancellationToken cancellationToken)
     {
+        var exists =
+            await _attendanceRepository.ExistsForTrainingSessionAsync(
+                request.TenantId,
+                request.TrainingSessionId,
+                cancellationToken);
+
+        if (exists)
+        {
+            return Result<CreateAttendanceRecordResult>.Failure(
+                new Error(
+                    "TRAINING_020",
+                    "Attendance record already exists for this training session."));
+        }
+
         var attendanceResult =
             AttendanceRecord.Create(
                 request.TenantId,
@@ -27,20 +46,21 @@ public sealed class CreateAttendanceRecordCommandHandler
 
         if (attendanceResult.IsFailure || attendanceResult.Value is null)
         {
-            throw new InvalidOperationException(
-    attendanceResult.Error.Message);
+            return Result<CreateAttendanceRecordResult>.Failure(
+                attendanceResult.Error);
         }
 
-        var attendanceRecord = attendanceResult.Value;
-
         await _attendanceRepository.AddRecordAsync(
-            attendanceRecord,
+            attendanceResult.Value,
             cancellationToken);
 
-        return new CreateAttendanceRecordResult(
-            attendanceRecord.Id,
-            attendanceRecord.TenantId,
-            attendanceRecord.TrainingSessionId,
-            attendanceRecord.CreatedByUserId);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+       return Result<CreateAttendanceRecordResult>.Success(
+    new CreateAttendanceRecordResult(
+        attendanceResult.Value.Id,
+        attendanceResult.Value.TenantId,
+        attendanceResult.Value.TrainingSessionId,
+        attendanceResult.Value.CreatedByUserId));
     }
 }

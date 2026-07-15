@@ -7,6 +7,18 @@ namespace VovinamERP.Infrastructure.Repositories;
 
 public sealed class AttendanceRepository : IAttendanceRepository
 {
+    public async Task<bool> ExistsForTrainingSessionAsync(
+    Guid tenantId,
+    Guid trainingSessionId,
+    CancellationToken cancellationToken = default)
+{
+    return await _context.Set<AttendanceRecord>()
+        .AsNoTracking()
+        .AnyAsync(
+            x => x.TenantId == tenantId &&
+                 x.TrainingSessionId == trainingSessionId,
+            cancellationToken);
+}
     private readonly VovinamDbContext _context;
 
     public async Task<IReadOnlyList<AttendanceRecord>> GetPagedAsync(

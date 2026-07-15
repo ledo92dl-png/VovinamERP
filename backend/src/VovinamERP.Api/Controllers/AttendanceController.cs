@@ -21,28 +21,39 @@ public sealed class AttendanceController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateAttendanceRecord(
-        CreateAttendanceRecordRequest request,
-        CancellationToken cancellationToken)
+public async Task<IActionResult> CreateAttendanceRecord(
+    CreateAttendanceRecordRequest request,
+    CancellationToken cancellationToken)
+{
+    var command = new CreateAttendanceRecordCommand(
+        request.TenantId,
+        request.TrainingSessionId,
+        request.CreatedByUserId);
+
+    var result = await _sender.Send(
+        command,
+        cancellationToken);
+
+    if (result.IsFailure || result.Value is null)
     {
-        var command = new CreateAttendanceRecordCommand(
-            request.TenantId,
-            request.TrainingSessionId,
-            request.CreatedByUserId);
-
-        var result = await _sender.Send(
-            command,
-            cancellationToken);
-
-        return CreatedAtAction(
-            nameof(GetAttendanceRecord),
-            new
-            {
-                attendanceRecordId = result.AttendanceRecordId,
-                tenantId = result.TenantId
-            },
-            result);
+        return BadRequest(new
+        {
+            Code = result.Error.Code,
+            Message = result.Error.Message
+        });
     }
+
+    var value = result.Value;
+
+    return CreatedAtAction(
+        nameof(GetAttendanceRecord),
+        new
+        {
+            attendanceRecordId = value.AttendanceRecordId,
+            tenantId = value.TenantId
+        },
+        value);
+}
 
     [HttpGet]
     public async Task<IActionResult> GetAttendanceRecords(
