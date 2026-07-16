@@ -57,13 +57,14 @@ public sealed class AttendanceRecord : AggregateRoot
     }
 
     public Result UpdateStudentAttendance(
-        Guid studentId,
-        AttendanceStatus status,
-        AttendanceMethod method,
-        AttendanceSource source,
-        Guid markedByUserId,
-        bool isBackfilled,
-        string? note)
+    Guid studentId,
+    AttendanceStatus status,
+    AttendanceMethod method,
+    AttendanceSource source,
+    Guid markedByUserId,
+    bool isBackfilled,
+    bool isCrossLocation,
+    string? note)
     {
         if (IsArchived)
             return Result.Failure(
@@ -87,22 +88,24 @@ if (Status == AttendanceRecordStatus.Completed)
         }
 
         return detail.UpdateStatus(
-            status,
-            method,
-            source,
-            markedByUserId,
-            isBackfilled,
-            note);
+    status,
+    method,
+    source,
+    markedByUserId,
+    isBackfilled,
+    isCrossLocation,
+    note);
     }
 
     public Result<AttendanceDetail> MarkStudent(
-        Guid studentId,
-        AttendanceStatus status,
-        AttendanceMethod method,
-        AttendanceSource source,
-        Guid markedByUserId,
-        bool isBackfilled,
-        string? note)
+    Guid studentId,
+    AttendanceStatus status,
+    AttendanceMethod method,
+    AttendanceSource source,
+    Guid markedByUserId,
+    bool isBackfilled,
+    bool isCrossLocation,
+    string? note)
     {
         if (IsArchived)
             return Result<AttendanceDetail>.Failure(
@@ -127,15 +130,16 @@ if (Status == AttendanceRecordStatus.Completed)
         }
 
         var detailResult = AttendanceDetail.Create(
-            TenantId,
-            Id,
-            studentId,
-            status,
-            method,
-            source,
-            markedByUserId,
-            isBackfilled,
-            note);
+    TenantId,
+    Id,
+    studentId,
+    status,
+    method,
+    source,
+    markedByUserId,
+    isBackfilled,
+    isCrossLocation,
+    note);
 
         if (detailResult.IsFailure || detailResult.Value is null)
             return Result<AttendanceDetail>.Failure(

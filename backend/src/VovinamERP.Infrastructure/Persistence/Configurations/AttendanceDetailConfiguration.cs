@@ -46,6 +46,10 @@ public sealed class AttendanceDetailConfiguration
         builder.Property(x => x.IsBackfilled)
             .IsRequired();
 
+        builder.Property(x => x.IsCrossLocation)
+              .IsRequired()
+             .HasDefaultValue(false);
+
         builder.Property(x => x.Note)
             .HasMaxLength(500);
 

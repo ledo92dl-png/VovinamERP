@@ -21,6 +21,7 @@ public sealed record ScanStudentQrResult(
     string? TrainingOrganizationAddress,
 
     Guid StudentHomeOrganizationId,
+    string StudentHomeOrganizationName,
     bool IsCrossLocation,
 
     DateOnly SessionDate,

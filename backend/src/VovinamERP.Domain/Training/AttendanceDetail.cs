@@ -19,6 +19,7 @@ public sealed class AttendanceDetail : AggregateRoot
     public Guid MarkedByUserId { get; private set; }
 
     public bool IsBackfilled { get; private set; }
+    public bool IsCrossLocation { get; private set; }
     private AttendanceDetail() { }
 
     private AttendanceDetail(
@@ -30,6 +31,7 @@ public sealed class AttendanceDetail : AggregateRoot
     AttendanceSource source,
     Guid markedByUserId,
     bool isBackfilled,
+    bool isCrossLocation,
     string? note)
 {
     TenantId = tenantId;
@@ -43,6 +45,7 @@ public sealed class AttendanceDetail : AggregateRoot
     MarkedByUserId = markedByUserId;
     MarkedAt = DateTimeOffset.UtcNow;
     IsBackfilled = isBackfilled;
+    IsCrossLocation = isCrossLocation;
 
     Note = note?.Trim();
 
@@ -64,6 +67,7 @@ public sealed class AttendanceDetail : AggregateRoot
     AttendanceSource source,
     Guid markedByUserId,
     bool isBackfilled,
+    bool isCrossLocation,
     string? note)
     {
         if (tenantId == Guid.Empty)
@@ -85,6 +89,7 @@ public sealed class AttendanceDetail : AggregateRoot
         source,
         markedByUserId,
         isBackfilled,
+        isCrossLocation,
         note));
     }
 
@@ -94,6 +99,7 @@ public sealed class AttendanceDetail : AggregateRoot
     AttendanceSource source,
     Guid markedByUserId,
     bool isBackfilled,
+    bool isCrossLocation,
     string? note)
 {
     if (IsArchived)
@@ -106,6 +112,7 @@ public sealed class AttendanceDetail : AggregateRoot
     MarkedByUserId = markedByUserId;
     MarkedAt = DateTimeOffset.UtcNow;
     IsBackfilled = isBackfilled;
+    IsCrossLocation = isCrossLocation;
 
     Note = note?.Trim();
 

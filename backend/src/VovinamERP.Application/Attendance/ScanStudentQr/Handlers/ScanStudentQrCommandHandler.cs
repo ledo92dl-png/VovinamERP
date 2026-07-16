@@ -199,6 +199,26 @@ if (trainingOrganization.TenantId != request.TenantId)
             "QR_ATTENDANCE_009",
             "Training organization does not belong to the current tenant."));
 }
+var studentHomeOrganization =
+    await _organizationRepository.GetByIdAsync(
+        student.OrganizationId,
+        cancellationToken);
+
+if (studentHomeOrganization is null)
+{
+    return Result<ScanStudentQrResult>.Failure(
+        new Error(
+            "QR_ATTENDANCE_010",
+            "Student home organization was not found."));
+}
+
+if (studentHomeOrganization.TenantId != request.TenantId)
+{
+    return Result<ScanStudentQrResult>.Failure(
+        new Error(
+            "QR_ATTENDANCE_011",
+            "Student home organization does not belong to the current tenant."));
+}
 
 var isCrossLocation =
     student.OrganizationId != trainingClass.OrganizationId;
@@ -230,6 +250,7 @@ var isCrossLocation =
         trainingOrganization.Address,
 
         student.OrganizationId,
+        studentHomeOrganization.Name,
         isCrossLocation,
 
         trainingSession.SessionDate,
@@ -251,6 +272,7 @@ var isCrossLocation =
     AttendanceSource.ScheduledClass,
     request.MarkedByUserId,
     false,
+    isCrossLocation,
     isCrossLocation
         ? "Checked in by QR code at another location."
         : "Checked in by QR code.");
@@ -287,6 +309,7 @@ var isCrossLocation =
         trainingOrganization.Address,
 
         student.OrganizationId,
+        studentHomeOrganization.Name,
         isCrossLocation,
 
         trainingSession.SessionDate,

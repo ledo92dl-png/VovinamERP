@@ -46,6 +46,7 @@ public sealed class MarkStudentAttendanceCommandHandler
             request.Source,
             request.MarkedByUserId,
             request.IsBackfilled,
+            false,
             request.Note);
 
         if (detailResult.IsFailure || detailResult.Value is null)

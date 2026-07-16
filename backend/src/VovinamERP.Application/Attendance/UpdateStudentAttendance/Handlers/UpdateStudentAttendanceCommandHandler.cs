@@ -40,6 +40,7 @@ public sealed class UpdateStudentAttendanceCommandHandler
             request.Source,
             request.MarkedByUserId,
             request.IsBackfilled,
+            false,
             request.Note);
 
         if (updateResult.IsFailure)
