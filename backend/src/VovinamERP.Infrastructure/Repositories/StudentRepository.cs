@@ -14,6 +14,19 @@ public sealed class StudentRepository : IStudentRepository
         _context = context;
     }
 
+    public async Task<Student?> GetByIdAsync(
+        Guid tenantId,
+        Guid studentId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Set<Student>()
+            .FirstOrDefaultAsync(
+                x => x.Id == studentId &&
+                     x.TenantId == tenantId &&
+                     !x.IsArchived,
+                cancellationToken);
+    }
+
     public async Task<Student?> GetByQrTokenAsync(
         Guid tenantId,
         string qrToken,
@@ -28,5 +41,10 @@ public sealed class StudentRepository : IStudentRepository
                      x.QrToken == normalizedToken &&
                      !x.IsArchived,
                 cancellationToken);
+    }
+
+    public void Update(Student student)
+    {
+        _context.Set<Student>().Update(student);
     }
 }

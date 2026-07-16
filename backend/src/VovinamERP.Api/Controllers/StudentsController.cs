@@ -1,4 +1,7 @@
+using VovinamERP.Application.Students.RegenerateStudentQr;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using VovinamERP.Application.Students.GetStudentQr;
 using Microsoft.EntityFrameworkCore;
 using VovinamERP.Api.Contracts.Common;
 using VovinamERP.Api.Contracts.Students;
@@ -13,12 +16,31 @@ namespace VovinamERP.Api.Controllers;
 public sealed class StudentsController : ControllerBase
 {
     private readonly VovinamDbContext _dbContext;
+    private readonly ISender _sender;
 
-    public StudentsController(VovinamDbContext dbContext)
-    {
-        _dbContext = dbContext;
-    }
+   public StudentsController(
+    VovinamDbContext dbContext,
+    ISender sender)
+{
+    _dbContext = dbContext;
+    _sender = sender;
+}
+    [HttpGet("{studentId:guid}/qr")]
+    public async Task<IActionResult> GetStudentQr(
+    Guid studentId,
+    [FromQuery] Guid tenantId,
+    CancellationToken cancellationToken)
+{
+    var query = new GetStudentQrQuery(
+        tenantId,
+        studentId);
 
+    var result = await _sender.Send(
+        query,
+        cancellationToken);
+
+    return Ok(result);
+}
     [HttpPost]
     public async Task<ActionResult<StudentResponse>> Create(
         [FromBody] CreateStudentRequest request,
@@ -269,4 +291,30 @@ public sealed class StudentsController : ControllerBase
             student.IntroducedBy,
             student.MartialProfileNote);
     }
+    [HttpPost("{studentId:guid}/qr/regenerate")]
+public async Task<IActionResult> RegenerateStudentQr(
+    Guid studentId,
+    [FromBody] RegenerateStudentQrRequest request,
+    CancellationToken cancellationToken)
+{
+    var command = new RegenerateStudentQrCommand(
+        request.TenantId,
+        studentId,
+        request.RegeneratedByUserId);
+
+    var result = await _sender.Send(
+        command,
+        cancellationToken);
+
+    if (result.IsFailure || result.Value is null)
+    {
+        return BadRequest(new
+        {
+            Code = result.Error.Code,
+            Message = result.Error.Message
+        });
+    }
+
+    return Ok(result.Value);
+}
 }
