@@ -9,6 +9,7 @@ public sealed record ScanStudentQrResult(
     string FullName,
     string? AvatarUrl,
     Guid? CurrentBeltRankId,
+    string? CurrentBeltRankName,
     QrCheckInStatus CheckInStatus,
     AttendanceStatus AttendanceStatus,
     AttendanceMethod Method,

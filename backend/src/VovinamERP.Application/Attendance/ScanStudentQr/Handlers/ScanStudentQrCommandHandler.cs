@@ -7,6 +7,7 @@ using VovinamERP.Application.Students.Common;
 using VovinamERP.Application.Students.QrCodes;
 using VovinamERP.Domain.Students;
 using VovinamERP.Domain.Training;
+using VovinamERP.Domain.Belts;
 using VovinamERP.SharedKernel.Results;
 
 
@@ -19,15 +20,18 @@ public sealed class ScanStudentQrCommandHandler
     private readonly IAttendanceRepository _attendanceRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IPersonRepository _personRepository;
+    private readonly IRepository<BeltRank> _beltRankRepository;
 
     public ScanStudentQrCommandHandler(
     IStudentRepository studentRepository,
     IPersonRepository personRepository,
+    IRepository<BeltRank> beltRankRepository,
     IAttendanceRepository attendanceRepository,
     IUnitOfWork unitOfWork)
 {
     _studentRepository = studentRepository;
     _personRepository = personRepository;
+    _beltRankRepository = beltRankRepository;
     _attendanceRepository = attendanceRepository;
     _unitOfWork = unitOfWork;
 }
@@ -98,6 +102,16 @@ if (person is null)
             await _attendanceRepository.GetRecordByIdAsync(
                 request.AttendanceRecordId,
                 cancellationToken);
+        string? currentBeltRankName = null;
+
+if (student.CurrentBeltRankId.HasValue)
+{
+    var beltRank = await _beltRankRepository.GetByIdAsync(
+        student.CurrentBeltRankId.Value,
+        cancellationToken);
+
+    currentBeltRankName = beltRank?.BeltName;
+}
 
         if (attendanceRecord is null)
         {
@@ -130,6 +144,7 @@ if (person is null)
         person.FullName,
         person.AvatarUrl,
         student.CurrentBeltRankId,
+        currentBeltRankName,
         QrCheckInStatus.AlreadyCheckedIn,
         existingDetail.Status,
         existingDetail.Method,
@@ -167,6 +182,7 @@ if (person is null)
         person.FullName,
         person.AvatarUrl,
         student.CurrentBeltRankId,
+        currentBeltRankName,
         QrCheckInStatus.CheckedIn,
         detail.Status,
         detail.Method,
