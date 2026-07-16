@@ -2,5 +2,5 @@ namespace VovinamERP.Api.Contracts.Attendance;
 
 public sealed record ScanStudentQrRequest(
     Guid TenantId,
-    string QrToken,
+    string QrContent,
     Guid MarkedByUserId);

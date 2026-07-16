@@ -1,4 +1,3 @@
-using VovinamERP.Application.Attendance.ScanStudentQr;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using VovinamERP.Api.Contracts.Attendance;
@@ -8,6 +7,7 @@ using VovinamERP.Application.Attendance.GetAttendanceRecords;
 using VovinamERP.Application.Attendance.MarkStudentAttendance;
 using VovinamERP.Application.Attendance.UpdateStudentAttendance;
 using VovinamERP.Application.Attendance.CompleteAttendanceRecord;
+using VovinamERP.Application.Attendance.ScanStudentQr;
 namespace VovinamERP.Api.Controllers;
 
 [ApiController]
@@ -168,15 +168,17 @@ public async Task<IActionResult> CompleteAttendanceRecord(
     return Ok(result.Value);
 }
 [HttpPost("{attendanceRecordId:guid}/scan-qr")]
-public async Task<IActionResult> ScanStudentQr(
+[ProducesResponseType(typeof(ScanStudentQrResult), StatusCodes.Status200OK)]
+[ProducesResponseType(StatusCodes.Status400BadRequest)]
+public async Task<ActionResult<ScanStudentQrResult>> ScanStudentQr(
     Guid attendanceRecordId,
-    ScanStudentQrRequest request,
+    [FromBody] ScanStudentQrRequest request,
     CancellationToken cancellationToken)
 {
     var command = new ScanStudentQrCommand(
         request.TenantId,
         attendanceRecordId,
-        request.QrToken,
+        request.QrContent,
         request.MarkedByUserId);
 
     var result = await _sender.Send(

@@ -16,8 +16,8 @@ public sealed class ScanStudentQrValidator
         RuleFor(x => x.MarkedByUserId)
             .NotEmpty();
 
-        RuleFor(x => x.QrToken)
+        RuleFor(x => x.QrContent)
             .NotEmpty()
-            .MaximumLength(64);
+            .MaximumLength(256);
     }
 }

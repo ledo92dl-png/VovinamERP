@@ -8,6 +8,8 @@ using VovinamERP.Api.Contracts.Students;
 using VovinamERP.Domain.Persons;
 using VovinamERP.Domain.Students;
 using VovinamERP.Infrastructure.Persistence;
+using System.Text;
+using VovinamERP.Api.Services;
 
 namespace VovinamERP.Api.Controllers;
 
@@ -17,13 +19,16 @@ public sealed class StudentsController : ControllerBase
 {
     private readonly VovinamDbContext _dbContext;
     private readonly ISender _sender;
+    private readonly IQrCodeImageService _qrCodeImageService;
 
    public StudentsController(
     VovinamDbContext dbContext,
-    ISender sender)
+    ISender sender,
+    IQrCodeImageService qrCodeImageService)
 {
     _dbContext = dbContext;
     _sender = sender;
+    _qrCodeImageService = qrCodeImageService;
 }
     [HttpGet("{studentId:guid}/qr")]
     public async Task<IActionResult> GetStudentQr(
@@ -316,5 +321,49 @@ public async Task<IActionResult> RegenerateStudentQr(
     }
 
     return Ok(result.Value);
+}
+[HttpGet("{studentId:guid}/qr/png")]
+public async Task<IActionResult> GetStudentQrPng(
+    Guid studentId,
+    [FromQuery] Guid tenantId,
+    [FromQuery] int pixelsPerModule = 20,
+    CancellationToken cancellationToken = default)
+{
+    var result = await _sender.Send(
+        new GetStudentQrQuery(
+            tenantId,
+            studentId),
+        cancellationToken);
+
+    var pngBytes = _qrCodeImageService.GeneratePng(
+        result.QrContent,
+        pixelsPerModule);
+
+    return File(
+        pngBytes,
+        "image/png",
+        $"student-{result.MemberNumber}-qr.png");
+}
+[HttpGet("{studentId:guid}/qr/svg")]
+public async Task<IActionResult> GetStudentQrSvg(
+    Guid studentId,
+    [FromQuery] Guid tenantId,
+    [FromQuery] int pixelsPerModule = 20,
+    CancellationToken cancellationToken = default)
+{
+    var result = await _sender.Send(
+        new GetStudentQrQuery(
+            tenantId,
+            studentId),
+        cancellationToken);
+
+    var svg = _qrCodeImageService.GenerateSvg(
+        result.QrContent,
+        pixelsPerModule);
+
+    return File(
+        Encoding.UTF8.GetBytes(svg),
+        "image/svg+xml",
+        $"student-{result.MemberNumber}-qr.svg");
 }
 }

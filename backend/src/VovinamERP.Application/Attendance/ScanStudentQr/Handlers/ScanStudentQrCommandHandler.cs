@@ -2,6 +2,8 @@ using MediatR;
 using VovinamERP.Application.Attendance.Common;
 using VovinamERP.Application.Common.Interfaces;
 using VovinamERP.Application.Students.Common;
+using VovinamERP.Application.Students.QrCodes;
+using VovinamERP.Domain.Students;
 using VovinamERP.Domain.Training;
 using VovinamERP.SharedKernel.Results;
 
@@ -28,17 +30,52 @@ public sealed class ScanStudentQrCommandHandler
         ScanStudentQrCommand request,
         CancellationToken cancellationToken)
     {
+        var payloadResult = StudentQrPayloadParser.Parse(
+            request.QrContent);
+
+        if (payloadResult.IsFailure || payloadResult.Value is null)
+        {
+            return Result<ScanStudentQrResult>.Failure(
+                payloadResult.Error);
+        }
+
+        var payload = payloadResult.Value;
+
+        if (payload.TenantId != request.TenantId)
+        {
+            return Result<ScanStudentQrResult>.Failure(
+                new Error(
+                    "STUDENT_QR_008",
+                    "QR code belongs to another tenant."));
+        }
+
         var student = await _studentRepository.GetByQrTokenAsync(
             request.TenantId,
-            request.QrToken,
+            payload.QrToken,
             cancellationToken);
 
         if (student is null)
         {
             return Result<ScanStudentQrResult>.Failure(
                 new Error(
-                    "QR_ATTENDANCE_001",
-                    "QR code is invalid or the student was not found."));
+                    "STUDENT_QR_009",
+                    "Student was not found."));
+        }
+
+        if (student.IsArchived)
+        {
+            return Result<ScanStudentQrResult>.Failure(
+                new Error(
+                    "STUDENT_QR_010",
+                    "Student has been archived."));
+        }
+
+        if (student.Status != StudentStatus.Active)
+        {
+            return Result<ScanStudentQrResult>.Failure(
+                new Error(
+                    "STUDENT_QR_011",
+                    "Student is not active."));
         }
 
         var attendanceRecord =
@@ -62,6 +99,25 @@ public sealed class ScanStudentQrCommandHandler
                     "Attendance record does not belong to the current tenant."));
         }
 
+        var existingDetail = attendanceRecord.Details
+            .FirstOrDefault(
+                x => x.StudentId == student.Id &&
+                     !x.IsArchived);
+
+        if (existingDetail is not null)
+        {
+            return Result<ScanStudentQrResult>.Success(
+                new ScanStudentQrResult(
+                    attendanceRecord.Id,
+                    student.Id,
+                    student.MemberNumber,
+                    QrCheckInStatus.AlreadyCheckedIn,
+                    existingDetail.Status,
+                    existingDetail.Method,
+                    existingDetail.MarkedAt,
+                    "Student has already been checked in."));
+        }
+
         var markResult = attendanceRecord.MarkStudent(
             student.Id,
             AttendanceStatus.Present,
@@ -82,11 +138,17 @@ public sealed class ScanStudentQrCommandHandler
         await _unitOfWork.SaveChangesAsync(
             cancellationToken);
 
+        var detail = markResult.Value;
+
         return Result<ScanStudentQrResult>.Success(
             new ScanStudentQrResult(
                 attendanceRecord.Id,
                 student.Id,
                 student.MemberNumber,
+                QrCheckInStatus.CheckedIn,
+                detail.Status,
+                detail.Method,
+                detail.MarkedAt,
                 "Student checked in successfully by QR code."));
     }
 }

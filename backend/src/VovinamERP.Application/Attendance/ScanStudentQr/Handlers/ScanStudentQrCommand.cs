@@ -6,6 +6,6 @@ namespace VovinamERP.Application.Attendance.ScanStudentQr;
 public sealed record ScanStudentQrCommand(
     Guid TenantId,
     Guid AttendanceRecordId,
-    string QrToken,
+    string QrContent,
     Guid MarkedByUserId)
     : IRequest<Result<ScanStudentQrResult>>;
