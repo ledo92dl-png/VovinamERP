@@ -8,6 +8,7 @@ using VovinamERP.Application.Students.QrCodes;
 using VovinamERP.Domain.Students;
 using VovinamERP.Domain.Training;
 using VovinamERP.Domain.Belts;
+using VovinamERP.Domain.Organizations;
 using VovinamERP.SharedKernel.Results;
 
 
@@ -23,13 +24,15 @@ public sealed class ScanStudentQrCommandHandler
     private readonly IRepository<BeltRank> _beltRankRepository;
     private readonly IRepository<TrainingSession> _trainingSessionRepository;
     private readonly IRepository<TrainingClass> _trainingClassRepository;
+    private readonly IRepository<Organization> _organizationRepository;
 
-    public ScanStudentQrCommandHandler(
+   public ScanStudentQrCommandHandler(
     IStudentRepository studentRepository,
     IPersonRepository personRepository,
     IRepository<BeltRank> beltRankRepository,
     IRepository<TrainingSession> trainingSessionRepository,
     IRepository<TrainingClass> trainingClassRepository,
+    IRepository<Organization> organizationRepository,
     IAttendanceRepository attendanceRepository,
     IUnitOfWork unitOfWork)
 {
@@ -38,6 +41,7 @@ public sealed class ScanStudentQrCommandHandler
     _beltRankRepository = beltRankRepository;
     _trainingSessionRepository = trainingSessionRepository;
     _trainingClassRepository = trainingClassRepository;
+    _organizationRepository = organizationRepository;
     _attendanceRepository = attendanceRepository;
     _unitOfWork = unitOfWork;
 }
@@ -175,6 +179,29 @@ if (trainingClass.TenantId != request.TenantId)
             "QR_ATTENDANCE_007",
             "Training class does not belong to the current tenant."));
 }
+var trainingOrganization =
+    await _organizationRepository.GetByIdAsync(
+        trainingClass.OrganizationId,
+        cancellationToken);
+
+if (trainingOrganization is null)
+{
+    return Result<ScanStudentQrResult>.Failure(
+        new Error(
+            "QR_ATTENDANCE_008",
+            "Training organization was not found."));
+}
+
+if (trainingOrganization.TenantId != request.TenantId)
+{
+    return Result<ScanStudentQrResult>.Failure(
+        new Error(
+            "QR_ATTENDANCE_009",
+            "Training organization does not belong to the current tenant."));
+}
+
+var isCrossLocation =
+    student.OrganizationId != trainingClass.OrganizationId;
 
         var existingDetail = attendanceRecord.Details
             .FirstOrDefault(
@@ -192,29 +219,41 @@ if (trainingClass.TenantId != request.TenantId)
         person.AvatarUrl,
         student.CurrentBeltRankId,
         currentBeltRankName,
+
         trainingSession.Id,
         trainingClass.Id,
         trainingClass.Code,
         trainingClass.Name,
+
+        trainingOrganization.Id,
+        trainingOrganization.Name,
+        trainingOrganization.Address,
+
+        student.OrganizationId,
+        isCrossLocation,
+
         trainingSession.SessionDate,
         trainingSession.StartTime,
         trainingSession.EndTime,
+
         QrCheckInStatus.AlreadyCheckedIn,
         existingDetail.Status,
         existingDetail.Method,
         existingDetail.MarkedAt,
-        "Student has already been checked in."));
+        isCrossLocation
+            ? "Student has already been checked in at another location."
+            : "Student has already been checked in."));
         }
-
         var markResult = attendanceRecord.MarkStudent(
-            student.Id,
-            AttendanceStatus.Present,
-            AttendanceMethod.QrCode,
-            AttendanceSource.ScheduledClass,
-            request.MarkedByUserId,
-            false,
-            "Checked in by QR code.");
-
+    student.Id,
+    AttendanceStatus.Present,
+    AttendanceMethod.QrCode,
+    AttendanceSource.ScheduledClass,
+    request.MarkedByUserId,
+    false,
+    isCrossLocation
+        ? "Checked in by QR code at another location."
+        : "Checked in by QR code.");
         if (markResult.IsFailure || markResult.Value is null)
         {
             return Result<ScanStudentQrResult>.Failure(
@@ -237,17 +276,30 @@ if (trainingClass.TenantId != request.TenantId)
         person.AvatarUrl,
         student.CurrentBeltRankId,
         currentBeltRankName,
+
         trainingSession.Id,
         trainingClass.Id,
         trainingClass.Code,
         trainingClass.Name,
+
+        trainingOrganization.Id,
+        trainingOrganization.Name,
+        trainingOrganization.Address,
+
+        student.OrganizationId,
+        isCrossLocation,
+
         trainingSession.SessionDate,
         trainingSession.StartTime,
         trainingSession.EndTime,
+
         QrCheckInStatus.CheckedIn,
         detail.Status,
         detail.Method,
         detail.MarkedAt,
-        "Student checked in successfully by QR code."));
+        isCrossLocation
+            ? "Student checked in successfully at another location."
+            : "Student checked in successfully by QR code."));
+        
     }
 }

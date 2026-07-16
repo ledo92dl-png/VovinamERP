@@ -10,13 +10,23 @@ public sealed record ScanStudentQrResult(
     string? AvatarUrl,
     Guid? CurrentBeltRankId,
     string? CurrentBeltRankName,
+
     Guid TrainingSessionId,
     Guid TrainingClassId,
     string TrainingClassCode,
     string TrainingClassName,
+
+    Guid TrainingOrganizationId,
+    string TrainingOrganizationName,
+    string? TrainingOrganizationAddress,
+
+    Guid StudentHomeOrganizationId,
+    bool IsCrossLocation,
+
     DateOnly SessionDate,
     TimeOnly StartTime,
     TimeOnly EndTime,
+
     QrCheckInStatus CheckInStatus,
     AttendanceStatus AttendanceStatus,
     AttendanceMethod Method,
