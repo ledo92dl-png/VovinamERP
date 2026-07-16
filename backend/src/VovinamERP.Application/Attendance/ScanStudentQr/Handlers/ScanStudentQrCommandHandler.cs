@@ -1,11 +1,14 @@
 using MediatR;
 using VovinamERP.Application.Attendance.Common;
 using VovinamERP.Application.Common.Interfaces;
+using IPersonRepository =
+    VovinamERP.Application.Common.Repositories.IPersonRepository;
 using VovinamERP.Application.Students.Common;
 using VovinamERP.Application.Students.QrCodes;
 using VovinamERP.Domain.Students;
 using VovinamERP.Domain.Training;
 using VovinamERP.SharedKernel.Results;
+
 
 namespace VovinamERP.Application.Attendance.ScanStudentQr.Handlers;
 
@@ -15,16 +18,19 @@ public sealed class ScanStudentQrCommandHandler
     private readonly IStudentRepository _studentRepository;
     private readonly IAttendanceRepository _attendanceRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IPersonRepository _personRepository;
 
     public ScanStudentQrCommandHandler(
-        IStudentRepository studentRepository,
-        IAttendanceRepository attendanceRepository,
-        IUnitOfWork unitOfWork)
-    {
-        _studentRepository = studentRepository;
-        _attendanceRepository = attendanceRepository;
-        _unitOfWork = unitOfWork;
-    }
+    IStudentRepository studentRepository,
+    IPersonRepository personRepository,
+    IAttendanceRepository attendanceRepository,
+    IUnitOfWork unitOfWork)
+{
+    _studentRepository = studentRepository;
+    _personRepository = personRepository;
+    _attendanceRepository = attendanceRepository;
+    _unitOfWork = unitOfWork;
+}
 
     public async Task<Result<ScanStudentQrResult>> Handle(
         ScanStudentQrCommand request,
@@ -77,7 +83,17 @@ public sealed class ScanStudentQrCommandHandler
                     "STUDENT_QR_011",
                     "Student is not active."));
         }
+        var person = await _personRepository.GetByIdAsync(
+    student.PersonId,
+    cancellationToken);
 
+if (person is null)
+{
+    return Result<ScanStudentQrResult>.Failure(
+        new Error(
+            "STUDENT_QR_012",
+            "Student profile information was not found."));
+}
         var attendanceRecord =
             await _attendanceRepository.GetRecordByIdAsync(
                 request.AttendanceRecordId,
@@ -107,15 +123,18 @@ public sealed class ScanStudentQrCommandHandler
         if (existingDetail is not null)
         {
             return Result<ScanStudentQrResult>.Success(
-                new ScanStudentQrResult(
-                    attendanceRecord.Id,
-                    student.Id,
-                    student.MemberNumber,
-                    QrCheckInStatus.AlreadyCheckedIn,
-                    existingDetail.Status,
-                    existingDetail.Method,
-                    existingDetail.MarkedAt,
-                    "Student has already been checked in."));
+    new ScanStudentQrResult(
+        attendanceRecord.Id,
+        student.Id,
+        student.MemberNumber,
+        person.FullName,
+        person.AvatarUrl,
+        student.CurrentBeltRankId,
+        QrCheckInStatus.AlreadyCheckedIn,
+        existingDetail.Status,
+        existingDetail.Method,
+        existingDetail.MarkedAt,
+        "Student has already been checked in."));
         }
 
         var markResult = attendanceRecord.MarkStudent(
@@ -141,14 +160,17 @@ public sealed class ScanStudentQrCommandHandler
         var detail = markResult.Value;
 
         return Result<ScanStudentQrResult>.Success(
-            new ScanStudentQrResult(
-                attendanceRecord.Id,
-                student.Id,
-                student.MemberNumber,
-                QrCheckInStatus.CheckedIn,
-                detail.Status,
-                detail.Method,
-                detail.MarkedAt,
-                "Student checked in successfully by QR code."));
+    new ScanStudentQrResult(
+        attendanceRecord.Id,
+        student.Id,
+        student.MemberNumber,
+        person.FullName,
+        person.AvatarUrl,
+        student.CurrentBeltRankId,
+        QrCheckInStatus.CheckedIn,
+        detail.Status,
+        detail.Method,
+        detail.MarkedAt,
+        "Student checked in successfully by QR code."));
     }
 }

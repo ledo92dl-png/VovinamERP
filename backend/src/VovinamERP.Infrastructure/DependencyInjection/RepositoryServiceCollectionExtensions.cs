@@ -26,6 +26,9 @@ public static class RepositoryServiceCollectionExtensions
         services.AddScoped<
     VovinamERP.Application.Students.Common.IStudentRepository,
     VovinamERP.Infrastructure.Repositories.StudentRepository>();
+        services.AddScoped<
+    VovinamERP.Application.Common.Repositories.IPersonRepository,
+    VovinamERP.Infrastructure.Persistence.Repositories.PersonRepository>();
         return services;
     }
 }
