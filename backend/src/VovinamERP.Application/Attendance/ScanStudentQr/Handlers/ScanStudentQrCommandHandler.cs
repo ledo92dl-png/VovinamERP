@@ -21,17 +21,23 @@ public sealed class ScanStudentQrCommandHandler
     private readonly IUnitOfWork _unitOfWork;
     private readonly IPersonRepository _personRepository;
     private readonly IRepository<BeltRank> _beltRankRepository;
+    private readonly IRepository<TrainingSession> _trainingSessionRepository;
+    private readonly IRepository<TrainingClass> _trainingClassRepository;
 
     public ScanStudentQrCommandHandler(
     IStudentRepository studentRepository,
     IPersonRepository personRepository,
     IRepository<BeltRank> beltRankRepository,
+    IRepository<TrainingSession> trainingSessionRepository,
+    IRepository<TrainingClass> trainingClassRepository,
     IAttendanceRepository attendanceRepository,
     IUnitOfWork unitOfWork)
 {
     _studentRepository = studentRepository;
     _personRepository = personRepository;
     _beltRankRepository = beltRankRepository;
+    _trainingSessionRepository = trainingSessionRepository;
+    _trainingClassRepository = trainingClassRepository;
     _attendanceRepository = attendanceRepository;
     _unitOfWork = unitOfWork;
 }
@@ -128,6 +134,47 @@ if (student.CurrentBeltRankId.HasValue)
                     "QR_ATTENDANCE_003",
                     "Attendance record does not belong to the current tenant."));
         }
+        var trainingSession =
+    await _trainingSessionRepository.GetByIdAsync(
+        attendanceRecord.TrainingSessionId,
+        cancellationToken);
+
+if (trainingSession is null)
+{
+    return Result<ScanStudentQrResult>.Failure(
+        new Error(
+            "QR_ATTENDANCE_004",
+            "Training session was not found."));
+}
+
+if (trainingSession.TenantId != request.TenantId)
+{
+    return Result<ScanStudentQrResult>.Failure(
+        new Error(
+            "QR_ATTENDANCE_005",
+            "Training session does not belong to the current tenant."));
+}
+
+var trainingClass =
+    await _trainingClassRepository.GetByIdAsync(
+        trainingSession.TrainingClassId,
+        cancellationToken);
+
+if (trainingClass is null)
+{
+    return Result<ScanStudentQrResult>.Failure(
+        new Error(
+            "QR_ATTENDANCE_006",
+            "Training class was not found."));
+}
+
+if (trainingClass.TenantId != request.TenantId)
+{
+    return Result<ScanStudentQrResult>.Failure(
+        new Error(
+            "QR_ATTENDANCE_007",
+            "Training class does not belong to the current tenant."));
+}
 
         var existingDetail = attendanceRecord.Details
             .FirstOrDefault(
@@ -136,7 +183,7 @@ if (student.CurrentBeltRankId.HasValue)
 
         if (existingDetail is not null)
         {
-            return Result<ScanStudentQrResult>.Success(
+           return Result<ScanStudentQrResult>.Success(
     new ScanStudentQrResult(
         attendanceRecord.Id,
         student.Id,
@@ -145,6 +192,13 @@ if (student.CurrentBeltRankId.HasValue)
         person.AvatarUrl,
         student.CurrentBeltRankId,
         currentBeltRankName,
+        trainingSession.Id,
+        trainingClass.Id,
+        trainingClass.Code,
+        trainingClass.Name,
+        trainingSession.SessionDate,
+        trainingSession.StartTime,
+        trainingSession.EndTime,
         QrCheckInStatus.AlreadyCheckedIn,
         existingDetail.Status,
         existingDetail.Method,
@@ -183,6 +237,13 @@ if (student.CurrentBeltRankId.HasValue)
         person.AvatarUrl,
         student.CurrentBeltRankId,
         currentBeltRankName,
+        trainingSession.Id,
+        trainingClass.Id,
+        trainingClass.Code,
+        trainingClass.Name,
+        trainingSession.SessionDate,
+        trainingSession.StartTime,
+        trainingSession.EndTime,
         QrCheckInStatus.CheckedIn,
         detail.Status,
         detail.Method,
