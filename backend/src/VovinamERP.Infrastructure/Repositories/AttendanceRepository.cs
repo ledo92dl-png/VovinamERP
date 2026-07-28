@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using VovinamERP.Application.Attendance.Common;
+using VovinamERP.Domain.Organizations;
 using VovinamERP.Domain.Training;
 using VovinamERP.Infrastructure.Persistence;
+using VovinamERP.Application.Attendance.GetCrossLocationByOrganizationReport;
 
 namespace VovinamERP.Infrastructure.Repositories;
 
@@ -158,4 +160,60 @@ public AttendanceRepository(VovinamDbContext context)
         _context.Set<AttendanceRecord>()
             .Update(attendanceRecord);
     }
+    public async Task<IReadOnlyList<CrossLocationOrganizationItem>>
+    GetCrossLocationByOrganizationAsync(
+        Guid tenantId,
+        DateOnly? fromDate,
+        DateOnly? toDate,
+        CancellationToken cancellationToken = default)
+{
+    var query =
+        from detail in _context.Set<AttendanceDetail>().AsNoTracking()
+        join record in _context.Set<AttendanceRecord>().AsNoTracking()
+            on detail.AttendanceRecordId equals record.Id
+        join session in _context.Set<TrainingSession>().AsNoTracking()
+            on record.TrainingSessionId equals session.Id
+        join trainingClass in _context.Set<TrainingClass>().AsNoTracking()
+            on session.TrainingClassId equals trainingClass.Id
+        join organization in _context.Set<Organization>().AsNoTracking()
+            on trainingClass.OrganizationId equals organization.Id
+        where detail.TenantId == tenantId
+              && !detail.IsArchived
+              && !record.IsArchived
+              && !session.IsArchived
+        select new
+        {
+            organization.Id,
+            organization.Name,
+            detail.IsCrossLocation,
+            session.SessionDate
+        };
+
+    if (fromDate.HasValue)
+        query = query.Where(x => x.SessionDate >= fromDate.Value);
+
+    if (toDate.HasValue)
+        query = query.Where(x => x.SessionDate <= toDate.Value);
+
+    var data = await query.ToListAsync(cancellationToken);
+
+    return data
+        .GroupBy(x => new { x.Id, x.Name })
+        .Select(g =>
+        {
+            var total = g.Count();
+            var cross = g.Count(x => x.IsCrossLocation);
+
+            return new CrossLocationOrganizationItem(
+                g.Key.Id,
+                g.Key.Name,
+                total,
+                cross,
+                total == 0
+                    ? 0m
+                    : Math.Round(cross * 100m / total, 2));
+        })
+        .OrderByDescending(x => x.CrossLocationAttendances)
+        .ToList();
+}
 }

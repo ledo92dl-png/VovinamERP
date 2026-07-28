@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using VovinamERP.Application.Attendance.GetCrossLocationAttendanceReport;
+using VovinamERP.Application.Attendance.GetCrossLocationByOrganizationReport;
 
 namespace VovinamERP.Api.Controllers;
 
@@ -35,4 +36,24 @@ public sealed class AttendanceReportsController : ControllerBase
 
         return Ok(result);
     }
+    [HttpGet("cross-location/by-organization")]
+public async Task<ActionResult<GetCrossLocationByOrganizationReportResult>>
+    GetCrossLocationByOrganizationReport(
+        [FromQuery] Guid tenantId,
+        [FromQuery] DateOnly? fromDate,
+        [FromQuery] DateOnly? toDate,
+        CancellationToken cancellationToken)
+{
+    var query =
+        new GetCrossLocationByOrganizationReportQuery(
+            tenantId,
+            fromDate,
+            toDate);
+
+    var result = await _sender.Send(
+        query,
+        cancellationToken);
+
+    return Ok(result);
+}
 }
