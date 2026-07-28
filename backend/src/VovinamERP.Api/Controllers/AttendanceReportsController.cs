@@ -86,7 +86,11 @@ public async Task<ActionResult<GetCrossLocationAttendanceDetailsResult>>
         [FromQuery] DateOnly? toDate,
         [FromQuery] Guid? studentId,
         [FromQuery] Guid? trainingOrganizationId,
-        CancellationToken cancellationToken)
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? sortBy = "sessionDate",
+        [FromQuery] bool descending = true,
+        CancellationToken cancellationToken = default)
 {
     var query =
         new GetCrossLocationAttendanceDetailsQuery(
@@ -94,7 +98,11 @@ public async Task<ActionResult<GetCrossLocationAttendanceDetailsResult>>
             fromDate,
             toDate,
             studentId,
-            trainingOrganizationId);
+            trainingOrganizationId,
+            pageNumber,
+            pageSize,
+            sortBy,
+            descending);
 
     var result = await _sender.Send(
         query,

@@ -165,11 +165,19 @@ public AttendanceRepository(VovinamDbContext context)
         _context.Set<AttendanceRecord>()
             .Update(attendanceRecord);
     }
-    public async Task<IReadOnlyList<CrossLocationOrganizationItem>>
-    GetCrossLocationByOrganizationAsync(
+    public async Task<(
+    IReadOnlyList<CrossLocationAttendanceDetailItem> Items,
+    int TotalCount)>
+    GetCrossLocationAttendanceDetailsAsync(
         Guid tenantId,
         DateOnly? fromDate,
         DateOnly? toDate,
+        Guid? studentId,
+        Guid? trainingOrganizationId,
+        int pageNumber,
+        int pageSize,
+        string? sortBy,
+        bool descending,
         CancellationToken cancellationToken = default)
 {
     var query =
@@ -180,46 +188,139 @@ public AttendanceRepository(VovinamDbContext context)
             on record.TrainingSessionId equals session.Id
         join trainingClass in _context.Set<TrainingClass>().AsNoTracking()
             on session.TrainingClassId equals trainingClass.Id
-        join organization in _context.Set<Organization>().AsNoTracking()
-            on trainingClass.OrganizationId equals organization.Id
+        join student in _context.Set<Student>().AsNoTracking()
+            on detail.StudentId equals student.Id
+        join person in _context.Set<Person>().AsNoTracking()
+            on student.PersonId equals person.Id
+        join homeOrganization in _context.Set<Organization>().AsNoTracking()
+            on student.OrganizationId equals homeOrganization.Id
+        join trainingOrganization in _context.Set<Organization>().AsNoTracking()
+            on trainingClass.OrganizationId equals trainingOrganization.Id
         where detail.TenantId == tenantId
+              && record.TenantId == tenantId
+              && session.TenantId == tenantId
+              && student.TenantId == tenantId
+              && person.TenantId == tenantId
+              && homeOrganization.TenantId == tenantId
+              && trainingOrganization.TenantId == tenantId
+              && detail.IsCrossLocation
               && !detail.IsArchived
               && !record.IsArchived
               && !session.IsArchived
+              && !student.IsArchived
+              && !person.IsArchived
+              && !homeOrganization.IsArchived
+              && !trainingOrganization.IsArchived
         select new
         {
-            organization.Id,
-            organization.Name,
-            detail.IsCrossLocation,
-            session.SessionDate
+            Detail = detail,
+            Session = session,
+            TrainingClass = trainingClass,
+            Student = student,
+            Person = person,
+            HomeOrganization = homeOrganization,
+            TrainingOrganization = trainingOrganization
         };
 
     if (fromDate.HasValue)
-        query = query.Where(x => x.SessionDate >= fromDate.Value);
+    {
+        query = query.Where(
+            x => x.Session.SessionDate >= fromDate.Value);
+    }
 
     if (toDate.HasValue)
-        query = query.Where(x => x.SessionDate <= toDate.Value);
+    {
+        query = query.Where(
+            x => x.Session.SessionDate <= toDate.Value);
+    }
 
-    var data = await query.ToListAsync(cancellationToken);
+    if (studentId.HasValue)
+    {
+        query = query.Where(
+            x => x.Student.Id == studentId.Value);
+    }
 
-    return data
-        .GroupBy(x => new { x.Id, x.Name })
-        .Select(g =>
-        {
-            var total = g.Count();
-            var cross = g.Count(x => x.IsCrossLocation);
+    if (trainingOrganizationId.HasValue)
+    {
+        query = query.Where(
+            x => x.TrainingOrganization.Id ==
+                 trainingOrganizationId.Value);
+    }
 
-            return new CrossLocationOrganizationItem(
-                g.Key.Id,
-                g.Key.Name,
-                total,
-                cross,
-                total == 0
-                    ? 0m
-                    : Math.Round(cross * 100m / total, 2));
-        })
-        .OrderByDescending(x => x.CrossLocationAttendances)
-        .ToList();
+    var totalCount = await query.CountAsync(
+        cancellationToken);
+
+    var normalizedSortBy =
+        sortBy?.Trim().ToLowerInvariant() ?? "sessiondate";
+
+    query = (normalizedSortBy, descending) switch
+    {
+        ("markedat", true) =>
+            query.OrderByDescending(x => x.Detail.MarkedAt),
+
+        ("markedat", false) =>
+            query.OrderBy(x => x.Detail.MarkedAt),
+
+        ("fullname", true) =>
+            query.OrderByDescending(x => x.Person.FullName),
+
+        ("fullname", false) =>
+            query.OrderBy(x => x.Person.FullName),
+
+        ("membernumber", true) =>
+            query.OrderByDescending(x => x.Student.MemberNumber),
+
+        ("membernumber", false) =>
+            query.OrderBy(x => x.Student.MemberNumber),
+
+        ("trainingorganizationname", true) =>
+            query.OrderByDescending(
+                x => x.TrainingOrganization.Name),
+
+        ("trainingorganizationname", false) =>
+            query.OrderBy(
+                x => x.TrainingOrganization.Name),
+
+        ("sessiondate", false) =>
+            query.OrderBy(x => x.Session.SessionDate)
+                .ThenBy(x => x.Session.StartTime),
+
+        _ =>
+            query.OrderByDescending(x => x.Session.SessionDate)
+                .ThenByDescending(x => x.Session.StartTime)
+    };
+
+    var items = await query
+        .Skip((pageNumber - 1) * pageSize)
+        .Take(pageSize)
+        .Select(x => new CrossLocationAttendanceDetailItem(
+            x.Detail.Id,
+            x.Student.Id,
+            x.Student.MemberNumber,
+            x.Person.FullName,
+
+            x.HomeOrganization.Id,
+            x.HomeOrganization.Name,
+
+            x.TrainingOrganization.Id,
+            x.TrainingOrganization.Name,
+
+            x.TrainingClass.Id,
+            x.TrainingClass.Code,
+            x.TrainingClass.Name,
+
+            x.Session.Id,
+            x.Session.SessionDate,
+            x.Session.StartTime,
+            x.Session.EndTime,
+
+            x.Detail.Status,
+            x.Detail.Method,
+            x.Detail.MarkedAt,
+            x.Detail.Note))
+        .ToListAsync(cancellationToken);
+
+    return (items, totalCount);
 }
     public async Task<IReadOnlyList<CrossLocationStudentItem>>
     GetCrossLocationByStudentAsync(
@@ -401,5 +502,76 @@ public AttendanceRepository(VovinamDbContext context)
             x.Detail.MarkedAt,
             x.Detail.Note))
         .ToListAsync(cancellationToken);
+}
+public async Task<IReadOnlyList<CrossLocationOrganizationItem>>
+    GetCrossLocationByOrganizationAsync(
+        Guid tenantId,
+        DateOnly? fromDate,
+        DateOnly? toDate,
+        CancellationToken cancellationToken = default)
+{
+    var query =
+        from detail in _context.Set<AttendanceDetail>().AsNoTracking()
+        join record in _context.Set<AttendanceRecord>().AsNoTracking()
+            on detail.AttendanceRecordId equals record.Id
+        join session in _context.Set<TrainingSession>().AsNoTracking()
+            on record.TrainingSessionId equals session.Id
+        join trainingClass in _context.Set<TrainingClass>().AsNoTracking()
+            on session.TrainingClassId equals trainingClass.Id
+        join organization in _context.Set<Organization>().AsNoTracking()
+            on trainingClass.OrganizationId equals organization.Id
+        where detail.TenantId == tenantId
+              && detail.IsCrossLocation
+              && !detail.IsArchived
+              && !record.IsArchived
+              && !session.IsArchived
+              && !trainingClass.IsArchived
+              && !organization.IsArchived
+        select new
+        {
+            OrganizationId = organization.Id,
+            OrganizationName = organization.Name,
+            SessionDate = session.SessionDate
+        };
+
+    if (fromDate.HasValue)
+        query = query.Where(x => x.SessionDate >= fromDate.Value);
+
+    if (toDate.HasValue)
+        query = query.Where(x => x.SessionDate <= toDate.Value);
+
+    var data = await query.ToListAsync(cancellationToken);
+
+    return data
+        .GroupBy(x => new
+        {
+            x.OrganizationId,
+            x.OrganizationName
+        })
+        .Select(g =>
+{
+    var totalAttendances = g.Count();
+
+    var crossLocationAttendances =
+        g.Count();
+
+    var crossLocationRate =
+        totalAttendances == 0
+            ? 0m
+            : Math.Round(
+                crossLocationAttendances * 100m /
+                totalAttendances,
+                2);
+
+    return new CrossLocationOrganizationItem(
+        g.Key.OrganizationId,
+        g.Key.OrganizationName,
+        totalAttendances,
+        crossLocationAttendances,
+        crossLocationRate);
+})
+        .OrderByDescending(x => x.CrossLocationAttendances)
+        .ThenBy(x => x.OrganizationName)
+        .ToList();
 }
 }

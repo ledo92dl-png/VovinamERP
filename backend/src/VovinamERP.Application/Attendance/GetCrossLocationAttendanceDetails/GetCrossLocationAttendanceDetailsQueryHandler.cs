@@ -20,7 +20,7 @@ public sealed class GetCrossLocationAttendanceDetailsQueryHandler
         GetCrossLocationAttendanceDetailsQuery request,
         CancellationToken cancellationToken)
     {
-        var items =
+        var result =
             await _attendanceRepository
                 .GetCrossLocationAttendanceDetailsAsync(
                     request.TenantId,
@@ -28,8 +28,24 @@ public sealed class GetCrossLocationAttendanceDetailsQueryHandler
                     request.ToDate,
                     request.StudentId,
                     request.TrainingOrganizationId,
+                    request.PageNumber,
+                    request.PageSize,
+                    request.SortBy,
+                    request.Descending,
                     cancellationToken);
 
-        return new GetCrossLocationAttendanceDetailsResult(items);
+        var totalPages =
+            result.TotalCount == 0
+                ? 0
+                : (int)Math.Ceiling(
+                    result.TotalCount /
+                    (double)request.PageSize);
+
+        return new GetCrossLocationAttendanceDetailsResult(
+            result.Items,
+            request.PageNumber,
+            request.PageSize,
+            result.TotalCount,
+            totalPages);
     }
 }

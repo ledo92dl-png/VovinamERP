@@ -36,13 +36,19 @@ public interface IAttendanceRepository
         DateOnly? toDate,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<CrossLocationAttendanceDetailItem>>
+    Task<(
+    IReadOnlyList<CrossLocationAttendanceDetailItem> Items,
+    int TotalCount)>
     GetCrossLocationAttendanceDetailsAsync(
         Guid tenantId,
         DateOnly? fromDate,
         DateOnly? toDate,
         Guid? studentId,
         Guid? trainingOrganizationId,
+        int pageNumber,
+        int pageSize,
+        string? sortBy,
+        bool descending,
         CancellationToken cancellationToken = default);
 
     Task<int> CountAsync(
