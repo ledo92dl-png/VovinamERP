@@ -2,11 +2,14 @@ using Microsoft.EntityFrameworkCore;
 using VovinamERP.Application.Attendance.Common;
 using VovinamERP.Application.Attendance.GetCrossLocationByOrganizationReport;
 using VovinamERP.Application.Attendance.GetCrossLocationByStudentReport;
+using VovinamERP.Application.Attendance.GetCrossLocationAttendanceDetails;
 using VovinamERP.Domain.Organizations;
 using VovinamERP.Domain.Training;
 using VovinamERP.Domain.Persons;
 using VovinamERP.Domain.Students;
 using VovinamERP.Infrastructure.Persistence;
+
+
 namespace VovinamERP.Infrastructure.Repositories;
 
 public sealed class AttendanceRepository : IAttendanceRepository
@@ -316,5 +319,87 @@ public AttendanceRepository(VovinamDbContext context)
             x => x.CrossLocationAttendances)
         .ThenBy(x => x.FullName)
         .ToList();
+}
+    public async Task<IReadOnlyList<CrossLocationAttendanceDetailItem>>
+    GetCrossLocationAttendanceDetailsAsync(
+        Guid tenantId,
+        DateOnly? fromDate,
+        DateOnly? toDate,
+        Guid? studentId,
+        Guid? trainingOrganizationId,
+        CancellationToken cancellationToken = default)
+{
+    var query =
+        from detail in _context.Set<AttendanceDetail>().AsNoTracking()
+        join record in _context.Set<AttendanceRecord>().AsNoTracking()
+            on detail.AttendanceRecordId equals record.Id
+        join session in _context.Set<TrainingSession>().AsNoTracking()
+            on record.TrainingSessionId equals session.Id
+        join trainingClass in _context.Set<TrainingClass>().AsNoTracking()
+            on session.TrainingClassId equals trainingClass.Id
+        join student in _context.Set<Student>().AsNoTracking()
+            on detail.StudentId equals student.Id
+        join person in _context.Set<Person>().AsNoTracking()
+            on student.PersonId equals person.Id
+        join homeOrganization in _context.Set<Organization>().AsNoTracking()
+            on student.OrganizationId equals homeOrganization.Id
+        join trainingOrganization in _context.Set<Organization>().AsNoTracking()
+            on trainingClass.OrganizationId equals trainingOrganization.Id
+        where detail.TenantId == tenantId
+              && detail.IsCrossLocation
+              && !detail.IsArchived
+        select new
+        {
+            Detail = detail,
+            Session = session,
+            TrainingClass = trainingClass,
+            Student = student,
+            Person = person,
+            HomeOrganization = homeOrganization,
+            TrainingOrganization = trainingOrganization
+        };
+
+    if (fromDate.HasValue)
+        query = query.Where(x => x.Session.SessionDate >= fromDate.Value);
+
+    if (toDate.HasValue)
+        query = query.Where(x => x.Session.SessionDate <= toDate.Value);
+
+    if (studentId.HasValue)
+        query = query.Where(x => x.Student.Id == studentId.Value);
+
+    if (trainingOrganizationId.HasValue)
+        query = query.Where(
+            x => x.TrainingOrganization.Id == trainingOrganizationId.Value);
+
+    return await query
+        .OrderByDescending(x => x.Session.SessionDate)
+        .ThenByDescending(x => x.Detail.MarkedAt)
+        .Select(x => new CrossLocationAttendanceDetailItem(
+            x.Detail.Id,
+            x.Student.Id,
+            x.Student.MemberNumber,
+            x.Person.FullName,
+
+            x.HomeOrganization.Id,
+            x.HomeOrganization.Name,
+
+            x.TrainingOrganization.Id,
+            x.TrainingOrganization.Name,
+
+            x.TrainingClass.Id,
+            x.TrainingClass.Code,
+            x.TrainingClass.Name,
+
+            x.Session.Id,
+            x.Session.SessionDate,
+            x.Session.StartTime,
+            x.Session.EndTime,
+
+            x.Detail.Status,
+            x.Detail.Method,
+            x.Detail.MarkedAt,
+            x.Detail.Note))
+        .ToListAsync(cancellationToken);
 }
 }

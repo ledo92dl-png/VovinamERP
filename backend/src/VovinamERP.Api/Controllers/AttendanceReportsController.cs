@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using VovinamERP.Application.Attendance.GetCrossLocationAttendanceReport;
 using VovinamERP.Application.Attendance.GetCrossLocationByOrganizationReport;
 using VovinamERP.Application.Attendance.GetCrossLocationByStudentReport;
+using VovinamERP.Application.Attendance.GetCrossLocationAttendanceDetails;
 
 namespace VovinamERP.Api.Controllers;
 
@@ -70,6 +71,30 @@ public async Task<ActionResult<GetCrossLocationByStudentReportResult>>
             tenantId,
             fromDate,
             toDate);
+
+    var result = await _sender.Send(
+        query,
+        cancellationToken);
+
+    return Ok(result);
+}
+    [HttpGet("cross-location/details")]
+public async Task<ActionResult<GetCrossLocationAttendanceDetailsResult>>
+    GetCrossLocationAttendanceDetails(
+        [FromQuery] Guid tenantId,
+        [FromQuery] DateOnly? fromDate,
+        [FromQuery] DateOnly? toDate,
+        [FromQuery] Guid? studentId,
+        [FromQuery] Guid? trainingOrganizationId,
+        CancellationToken cancellationToken)
+{
+    var query =
+        new GetCrossLocationAttendanceDetailsQuery(
+            tenantId,
+            fromDate,
+            toDate,
+            studentId,
+            trainingOrganizationId);
 
     var result = await _sender.Send(
         query,

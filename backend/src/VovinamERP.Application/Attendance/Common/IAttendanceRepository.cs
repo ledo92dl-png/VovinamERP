@@ -2,6 +2,7 @@ using VovinamERP.Domain.Training;
 using VovinamERP.Application.Attendance.GetCrossLocationByOrganizationReport;
 using VovinamERP.Domain.Organizations;
 using VovinamERP.Application.Attendance.GetCrossLocationByStudentReport;
+using VovinamERP.Application.Attendance.GetCrossLocationAttendanceDetails;
 
 namespace VovinamERP.Application.Attendance.Common;
 
@@ -33,6 +34,15 @@ public interface IAttendanceRepository
         Guid tenantId,
         DateOnly? fromDate,
         DateOnly? toDate,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<CrossLocationAttendanceDetailItem>>
+    GetCrossLocationAttendanceDetailsAsync(
+        Guid tenantId,
+        DateOnly? fromDate,
+        DateOnly? toDate,
+        Guid? studentId,
+        Guid? trainingOrganizationId,
         CancellationToken cancellationToken = default);
 
     Task<int> CountAsync(
