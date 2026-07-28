@@ -35,4 +35,10 @@ public interface IAttendanceRepository
         CancellationToken cancellationToken = default);
 
     void UpdateRecord(AttendanceRecord attendanceRecord);
+Task<(int TotalAttendances, int CrossLocationAttendances)>
+    GetCrossLocationSummaryAsync(
+        Guid tenantId,
+        DateOnly? fromDate,
+        DateOnly? toDate,
+        CancellationToken cancellationToken = default);
 }

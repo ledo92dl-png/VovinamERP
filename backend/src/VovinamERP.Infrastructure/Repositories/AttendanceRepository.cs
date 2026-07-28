@@ -7,6 +7,58 @@ namespace VovinamERP.Infrastructure.Repositories;
 
 public sealed class AttendanceRepository : IAttendanceRepository
 {
+   public async Task<(int TotalAttendances, int CrossLocationAttendances)>
+    GetCrossLocationSummaryAsync(
+        Guid tenantId,
+        DateOnly? fromDate,
+        DateOnly? toDate,
+        CancellationToken cancellationToken = default)
+{
+    var query =
+        from detail in _context.Set<AttendanceDetail>()
+            .AsNoTracking()
+        join record in _context.Set<AttendanceRecord>()
+            .AsNoTracking()
+            on detail.AttendanceRecordId equals record.Id
+        join session in _context.Set<TrainingSession>()
+            .AsNoTracking()
+            on record.TrainingSessionId equals session.Id
+        where detail.TenantId == tenantId
+              && record.TenantId == tenantId
+              && session.TenantId == tenantId
+              && !detail.IsArchived
+              && !record.IsArchived
+              && !session.IsArchived
+        select new
+        {
+            detail.IsCrossLocation,
+            session.SessionDate
+        };
+
+    if (fromDate.HasValue)
+    {
+        query = query.Where(
+            x => x.SessionDate >= fromDate.Value);
+    }
+
+    if (toDate.HasValue)
+    {
+        query = query.Where(
+            x => x.SessionDate <= toDate.Value);
+    }
+
+    var totalAttendances =
+        await query.CountAsync(cancellationToken);
+
+    var crossLocationAttendances =
+        await query.CountAsync(
+            x => x.IsCrossLocation,
+            cancellationToken);
+
+    return (
+        totalAttendances,
+        crossLocationAttendances);
+}
     public async Task<bool> ExistsForTrainingSessionAsync(
     Guid tenantId,
     Guid trainingSessionId,
