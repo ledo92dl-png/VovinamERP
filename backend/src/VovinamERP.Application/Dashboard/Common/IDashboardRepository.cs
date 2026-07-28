@@ -1,3 +1,4 @@
+using VovinamERP.Application.Dashboard.GetStudentsByBelt;
 namespace VovinamERP.Application.Dashboard.Common;
 
 public interface IDashboardRepository
@@ -27,5 +28,11 @@ public interface IDashboardRepository
     Task<int> CountCrossLocationAttendancesAsync(
         Guid tenantId,
         DateOnly reportDate,
+        CancellationToken cancellationToken = default);
+        
+    Task<(IReadOnlyList<StudentsByBeltItem> Items, int TotalStudents)>
+    GetStudentsByBeltAsync(
+        Guid tenantId,
+        Guid? organizationId,
         CancellationToken cancellationToken = default);
 }
