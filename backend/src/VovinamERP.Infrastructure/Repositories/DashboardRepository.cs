@@ -7,6 +7,7 @@ using VovinamERP.Domain.Training;
 using VovinamERP.Infrastructure.Persistence;
 using VovinamERP.Application.Dashboard.GetStudentsByBelt;
 using VovinamERP.Domain.Belts;
+using VovinamERP.Application.Dashboard.GetAttendanceTrend;
 
 namespace VovinamERP.Infrastructure.Repositories;
 
@@ -202,5 +203,58 @@ public sealed class DashboardRepository : IDashboardRepository
     }
 
     return (items, totalStudents);
+}
+public async Task<IReadOnlyList<AttendanceTrendItem>>
+    GetAttendanceTrendAsync(
+        Guid tenantId,
+        DateOnly fromDate,
+        DateOnly toDate,
+        Guid? organizationId,
+        CancellationToken cancellationToken = default)
+{
+    var query =
+        from detail in _context.Set<AttendanceDetail>().AsNoTracking()
+        join record in _context.Set<AttendanceRecord>().AsNoTracking()
+            on detail.AttendanceRecordId equals record.Id
+        join session in _context.Set<TrainingSession>().AsNoTracking()
+            on record.TrainingSessionId equals session.Id
+        join trainingClass in _context.Set<TrainingClass>().AsNoTracking()
+            on session.TrainingClassId equals trainingClass.Id
+        where detail.TenantId == tenantId
+              && record.TenantId == tenantId
+              && session.TenantId == tenantId
+              && session.SessionDate >= fromDate
+              && session.SessionDate <= toDate
+              && !detail.IsArchived
+              && !record.IsArchived
+              && !session.IsArchived
+              && !trainingClass.IsArchived
+        select new
+        {
+            session.SessionDate,
+            SessionId = session.Id,
+            detail.Id,
+            detail.IsCrossLocation,
+            trainingClass.OrganizationId
+        };
+
+    if (organizationId.HasValue)
+    {
+        query = query.Where(
+            x => x.OrganizationId == organizationId.Value);
+    }
+
+    var data = await query.ToListAsync(
+        cancellationToken);
+
+    return data
+        .GroupBy(x => x.SessionDate)
+        .OrderBy(g => g.Key)
+        .Select(g => new AttendanceTrendItem(
+            g.Key,
+            g.Select(x => x.SessionId).Distinct().Count(),
+            g.Count(),
+            g.Count(x => x.IsCrossLocation)))
+        .ToList();
 }
 }

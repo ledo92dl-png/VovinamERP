@@ -1,4 +1,5 @@
 using VovinamERP.Application.Dashboard.GetStudentsByBelt;
+using VovinamERP.Application.Dashboard.GetAttendanceTrend;
 namespace VovinamERP.Application.Dashboard.Common;
 
 public interface IDashboardRepository
@@ -29,10 +30,18 @@ public interface IDashboardRepository
         Guid tenantId,
         DateOnly reportDate,
         CancellationToken cancellationToken = default);
-        
+
     Task<(IReadOnlyList<StudentsByBeltItem> Items, int TotalStudents)>
     GetStudentsByBeltAsync(
         Guid tenantId,
+        Guid? organizationId,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<AttendanceTrendItem>>
+    GetAttendanceTrendAsync(
+        Guid tenantId,
+        DateOnly fromDate,
+        DateOnly toDate,
         Guid? organizationId,
         CancellationToken cancellationToken = default);
 }

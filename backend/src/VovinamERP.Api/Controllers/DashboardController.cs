@@ -2,6 +2,8 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using VovinamERP.Application.Dashboard.GetDashboardSummary;
 using VovinamERP.Application.Dashboard.GetStudentsByBelt;
+using VovinamERP.Application.Dashboard.GetAttendanceTrend;
+
 namespace VovinamERP.Api.Controllers;
 
 [ApiController]
@@ -44,6 +46,27 @@ public async Task<ActionResult<GetStudentsByBeltResult>>
 {
     var query = new GetStudentsByBeltQuery(
         tenantId,
+        organizationId);
+
+    var result = await _sender.Send(
+        query,
+        cancellationToken);
+
+    return Ok(result);
+}
+    [HttpGet("attendance-trend")]
+public async Task<ActionResult<GetAttendanceTrendResult>>
+    GetAttendanceTrend(
+        [FromQuery] Guid tenantId,
+        [FromQuery] DateOnly fromDate,
+        [FromQuery] DateOnly toDate,
+        [FromQuery] Guid? organizationId,
+        CancellationToken cancellationToken)
+{
+    var query = new GetAttendanceTrendQuery(
+        tenantId,
+        fromDate,
+        toDate,
         organizationId);
 
     var result = await _sender.Send(
