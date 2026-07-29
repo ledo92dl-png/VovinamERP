@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using VovinamERP.Application.Dashboard.GetDashboardSummary;
 using VovinamERP.Application.Dashboard.GetStudentsByBelt;
 using VovinamERP.Application.Dashboard.GetAttendanceTrend;
+using VovinamERP.Application.Dashboard.GetRevenueSummary;
 
 namespace VovinamERP.Api.Controllers;
 
@@ -64,6 +65,27 @@ public async Task<ActionResult<GetAttendanceTrendResult>>
         CancellationToken cancellationToken)
 {
     var query = new GetAttendanceTrendQuery(
+        tenantId,
+        fromDate,
+        toDate,
+        organizationId);
+
+    var result = await _sender.Send(
+        query,
+        cancellationToken);
+
+    return Ok(result);
+}
+    [HttpGet("revenue-summary")]
+public async Task<ActionResult<GetRevenueSummaryResult>>
+    GetRevenueSummary(
+        [FromQuery] Guid tenantId,
+        [FromQuery] DateOnly fromDate,
+        [FromQuery] DateOnly toDate,
+        [FromQuery] Guid? organizationId,
+        CancellationToken cancellationToken)
+{
+    var query = new GetRevenueSummaryQuery(
         tenantId,
         fromDate,
         toDate,
