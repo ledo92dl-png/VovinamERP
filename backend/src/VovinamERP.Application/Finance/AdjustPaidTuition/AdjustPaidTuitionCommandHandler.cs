@@ -44,7 +44,7 @@ public async Task<Result<AdjustPaidTuitionResult>> Handle(
         request.TuitionInvoiceId,
         async ct =>
         {
-            // Táº£i hÃ³a Ä‘Æ¡n sau khi Ä‘Ã£ láº¥y khÃ³a.
+            // Tải hóa đơn sau khi đã lấy khóa.
             var invoice = await _invoiceRepository.GetByIdAsync(
                 request.TenantId,
                 request.TuitionInvoiceId,
@@ -170,7 +170,7 @@ if (settlementAmount > 0)
     }
 }
 
-            // ChÆ°a thay Ä‘á»•i dá»¯ liá»‡u trong bÆ°á»›c nÃ y.
+            // Chưa thay đổi dữ liệu trong bước này.
             
 var adjustmentResult =
     VovinamERP.Domain.Finance.TuitionAdjustment.Create(
@@ -300,17 +300,17 @@ if (settlementAmount > 0 &&
 }
 
 
-// ChÆ°a lÆ°u vÃ o cÆ¡ sá»Ÿ dá»¯ liá»‡u.
-// CÃ¡c bÆ°á»›c tiáº¿p theo sáº½ cáº­p nháº­t hÃ³a Ä‘Æ¡n vÃ  táº¡o
-// Student Credit hoáº·c phiáº¿u hoÃ n tiá»n trÆ°á»›c khi lÆ°u.
+// Chưa lưu vào cơ sở dữ liệu.
+// Các bước tiếp theo sẽ cập nhật hóa đơn và tạo
+// Student Credit hoặc phiếu hoàn tiền trước khi lưu.
 
 
 await _adjustmentRepository.AddAsync(
     adjustment,
     ct);
 
-// LÆ°u hÃ³a Ä‘Æ¡n, lá»‹ch sá»­ Ä‘iá»u chá»‰nh vÃ  chá»©ng tá»«
-// Student Credit hoáº·c hoÃ n tiá»n trong cÃ¹ng giao dá»‹ch.
+// Lưu hóa đơn, lịch sử điều chỉnh và chứng từ
+// Student Credit hoặc hoàn tiền trong cùng giao dịch.
 await _unitOfWork.SaveChangesAsync(ct);
 
 return Result<AdjustPaidTuitionResult>.Success(
