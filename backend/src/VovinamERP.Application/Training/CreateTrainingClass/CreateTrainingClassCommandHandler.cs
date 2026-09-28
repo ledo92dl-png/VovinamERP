@@ -43,28 +43,33 @@ public sealed class CreateTrainingClassCommandHandler
 
         var normalizedCode = request.Code?.Trim();
 
-        if (!string.IsNullOrWhiteSpace(normalizedCode))
+        if (string.IsNullOrWhiteSpace(normalizedCode))
         {
-            var codeExists = await _trainingClassRepository.ExistsAsync(
-                x =>
-                    x.TenantId == request.TenantId &&
-                    x.Code == normalizedCode &&
-                    !x.IsArchived,
-                cancellationToken);
+            return Result<Guid>.Failure(
+                new Error(
+                    "TRAINING_022",
+                    "Training class code is required."));
+        }
 
-            if (codeExists)
-            {
-                return Result<Guid>.Failure(
-                    new Error(
-                        "TRAINING_020",
-                        "Training class code already exists."));
-            }
+        var codeExists = await _trainingClassRepository.ExistsAsync(
+            x =>
+                x.TenantId == request.TenantId &&
+                x.Code == normalizedCode &&
+                !x.IsArchived,
+            cancellationToken);
+
+        if (codeExists)
+        {
+            return Result<Guid>.Failure(
+                new Error(
+                    "TRAINING_020",
+                    "Training class code already exists."));
         }
 
         var createResult = TrainingClass.Create(
             request.TenantId,
             request.OrganizationId,
-            request.Code,
+            normalizedCode,
             request.Name,
             request.Description);
 
