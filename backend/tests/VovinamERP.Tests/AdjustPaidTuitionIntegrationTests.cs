@@ -535,4 +535,163 @@ public async Task RefundedRefund_Reconcile_ShouldPersistReconciledState()
         "REF-RECON-001",
         persistedRefund.TransactionReference);
 }
+    [Fact]
+    public async Task InvoicePaidByStudentCredit_AfterDiscount_ShouldReturnOverpaymentToStudentCredit()
+    {
+        await using var db = TestDatabase.CreateContext();
+
+        var tenantId = Guid.NewGuid();
+        var studentId = Guid.NewGuid();
+        var approverId = Guid.NewGuid();
+
+        // 1. Tạo hóa đơn học phí 300.000đ.
+        var invoiceResult =
+            TuitionInvoice.CreateMonthlyInvoice(
+                tenantId,
+                studentId,
+                $"HP-CREDIT-ADJ-{Guid.NewGuid():N}",
+                2027,
+                6,
+                300_000m,
+                0m,
+                null);
+
+        Assert.True(invoiceResult.IsSuccess);
+        Assert.NotNull(invoiceResult.Value);
+
+        var invoice = invoiceResult.Value!;
+
+        // 2. Mô phỏng 300.000đ Student Credit đã được cấn vào hóa đơn.
+        var applyCreditResult =
+            invoice.ApplyCredit(
+                300_000m);
+
+        Assert.True(applyCreditResult.IsSuccess);
+
+        var debitResult =
+            StudentCreditTransaction.Create(
+                tenantId,
+                studentId,
+                StudentCreditTransactionType.Debit,
+                300_000m,
+                new DateOnly(2027, 6, 1),
+null,
+null,
+invoice.Id,
+"Apply student credit to tuition invoice");
+
+        Assert.True(debitResult.IsSuccess);
+        Assert.NotNull(debitResult.Value);
+
+        db.TuitionInvoices.Add(invoice);
+        db.StudentCreditTransactions.Add(debitResult.Value!);
+
+        await db.SaveChangesAsync();
+
+        // Sau khi cấn 300.000đ, hóa đơn phải được thanh toán đủ.
+        Assert.Equal(0m, invoice.BalanceAmount);
+        Assert.Equal(TuitionInvoiceStatus.Paid, invoice.Status);
+
+        var handler =
+            new AdjustPaidTuitionCommandHandler(
+                new TuitionInvoiceRepository(db),
+                new TuitionAdjustmentRepository(db),
+                new TuitionRefundRepository(db),
+                new StudentCreditRepository(db),
+                new TuitionAdjustmentTransaction(db),
+                db);
+
+        // 3. Sau đó Admin giảm thêm 100.000đ.
+        var command =
+            new AdjustPaidTuitionCommand(
+                tenantId,
+                invoice.Id,
+                100_000m,
+                TuitionAdjustmentSettlementType.StudentCredit,
+                "Return overpayment from student credit",
+                approverId);
+
+        var result =
+            await handler.Handle(
+                command,
+                CancellationToken.None);
+
+        Assert.True(
+            result.IsSuccess,
+            result.IsFailure
+                ? $"{result.Error.Code}: {result.Error.Message}"
+                : null);
+
+        Assert.NotNull(result.Value);
+
+        var value = result.Value!;
+
+        Assert.Equal(300_000m, value.PreviousPayableAmount);
+        Assert.Equal(200_000m, value.NewPayableAmount);
+        Assert.Equal(100_000m, value.AdjustmentAmount);
+        Assert.Equal(100_000m, value.SettlementAmount);
+        Assert.Equal(0m, value.RemainingBalance);
+
+        Assert.Equal(
+            TuitionAdjustmentSettlementType.StudentCredit,
+            value.SettlementType);
+
+        Assert.NotNull(value.StudentCreditTransactionId);
+        Assert.Null(value.TuitionRefundId);
+
+        // 4. Đọc lại database để kiểm tra tiền thực tế.
+        db.ChangeTracker.Clear();
+
+        var persistedInvoice =
+            await db.TuitionInvoices
+                .SingleAsync(x => x.Id == invoice.Id);
+
+        Assert.Equal(
+            100_000m,
+            persistedInvoice.SpecialDiscountAmount);
+
+        Assert.Equal(
+            200_000m,
+            persistedInvoice.EffectivePaidAmount);
+
+        Assert.Equal(
+            0m,
+            persistedInvoice.BalanceAmount);
+
+        Assert.Equal(
+            TuitionInvoiceStatus.Paid,
+            persistedInvoice.Status);
+
+        // Debit ban đầu phải vẫn là 300.000đ.
+        var debit =
+            await db.StudentCreditTransactions
+                .SingleAsync(x =>
+                    x.TuitionInvoiceId == invoice.Id &&
+                    x.TransactionType ==
+                        StudentCreditTransactionType.Debit);
+
+        Assert.Equal(300_000m, debit.Amount);
+
+        // Phần giảm 100.000đ phải được trả lại thành Credit.
+        var returnedCredit =
+            await db.StudentCreditTransactions
+                .SingleAsync(x =>
+                    x.TuitionInvoiceId == invoice.Id &&
+                    x.TransactionType ==
+                        StudentCreditTransactionType.Credit);
+
+        Assert.Equal(100_000m, returnedCredit.Amount);
+        Assert.Equal(studentId, returnedCredit.StudentId);
+        Assert.NotNull(returnedCredit.TuitionAdjustmentId);
+
+        // Tổng tác động Student Credit:
+        // -300.000 + 100.000 = -200.000.
+        var creditBalance =
+            await new StudentCreditRepository(db)
+                .GetBalanceAsync(
+                    tenantId,
+                    studentId);
+
+        Assert.Equal(-200_000m, creditBalance);
+    }
 }
