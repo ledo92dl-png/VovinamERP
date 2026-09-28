@@ -67,10 +67,19 @@ Task<(int TotalAttendances, int CrossLocationAttendances)>
         DateOnly? fromDate,
         DateOnly? toDate,
         CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<CrossLocationStudentItem>>
     GetCrossLocationByStudentAsync(
         Guid tenantId,
         DateOnly? fromDate,
         DateOnly? toDate,
         CancellationToken cancellationToken = default);
+    
+    Task<int> CountStudentAttendancesByMonthAsync(
+    Guid tenantId,
+    Guid studentId,
+    int year,
+    int month,
+    CancellationToken cancellationToken = default);
+
 }

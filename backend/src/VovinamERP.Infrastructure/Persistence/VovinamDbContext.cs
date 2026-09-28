@@ -9,10 +9,18 @@ using VovinamERP.Domain.Persons;
 using VovinamERP.Domain.Students;
 using VovinamERP.Domain.Tenants;
 using VovinamERP.Domain.Training;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using VovinamERP.Infrastructure.Identity;
 
 namespace VovinamERP.Infrastructure.Persistence;
 
-public sealed class VovinamDbContext : DbContext, IUnitOfWork
+public sealed class VovinamDbContext
+    : IdentityDbContext<
+        ApplicationUser,
+        IdentityRole<Guid>,
+        Guid>,
+      IUnitOfWork
 {
     public VovinamDbContext(DbContextOptions<VovinamDbContext> options)
         : base(options)
@@ -35,11 +43,18 @@ public sealed class VovinamDbContext : DbContext, IUnitOfWork
     public DbSet<AttendanceDetail> AttendanceDetails => Set<AttendanceDetail>();
     public DbSet<TuitionInvoice> TuitionInvoices => Set<TuitionInvoice>();
     public DbSet<TuitionPayment> TuitionPayments => Set<TuitionPayment>();
+    public DbSet<TuitionAdjustment> TuitionAdjustments
+    => Set<TuitionAdjustment>();
+    public DbSet<TuitionRefund> TuitionRefunds
+    => Set<TuitionRefund>();
+    public DbSet<StudentCreditTransaction> StudentCreditTransactions
+    => Set<StudentCreditTransaction>();
     public DbSet<Receipt> Receipts => Set<Receipt>();
+    public DbSet<ReceiptItem> ReceiptItems => Set<ReceiptItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(VovinamDbContext).Assembly);
         base.OnModelCreating(modelBuilder);
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(VovinamDbContext).Assembly);
     }
 }

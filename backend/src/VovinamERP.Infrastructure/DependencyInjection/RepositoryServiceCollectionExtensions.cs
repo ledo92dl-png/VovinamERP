@@ -2,8 +2,10 @@ using Microsoft.Extensions.DependencyInjection;
 using VovinamERP.Application.Attendance.Common;
 using VovinamERP.Application.Common.Interfaces;
 using VovinamERP.Application.InstructorAssignments.Common;
+using VovinamERP.Application.Finance.Common;
 using VovinamERP.Infrastructure.Persistence.Repositories;
 using VovinamERP.Infrastructure.Repositories;
+
 
 namespace VovinamERP.Infrastructure.DependencyInjection;
 
@@ -32,6 +34,14 @@ public static class RepositoryServiceCollectionExtensions
        services.AddScoped<
     VovinamERP.Application.Dashboard.Common.IDashboardRepository,
     VovinamERP.Infrastructure.Repositories.DashboardRepository>();
+
+        services.AddScoped<IReceiptRepository, ReceiptRepository>();
+        services.AddScoped<ITuitionInvoiceRepository, TuitionInvoiceRepository>();
+        services.AddScoped<ITuitionRefundRepository, TuitionRefundRepository>();
+services.AddScoped<
+    ITuitionAdjustmentRepository,
+    TuitionAdjustmentRepository>();
+        services.AddScoped<IStudentCreditRepository, StudentCreditRepository>();
         return services;
     }
 }

@@ -55,8 +55,6 @@ public sealed class MarkStudentAttendanceCommandHandler
                 detailResult.Error.Message);
         }
 
-        _attendanceRepository.UpdateRecord(attendanceRecord);
-
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var detail = detailResult.Value;

@@ -8,6 +8,8 @@ using VovinamERP.Application.Attendance.MarkStudentAttendance;
 using VovinamERP.Application.Attendance.UpdateStudentAttendance;
 using VovinamERP.Application.Attendance.CompleteAttendanceRecord;
 using VovinamERP.Application.Attendance.ScanStudentQr;
+using VovinamERP.Application.Attendance.GetStudentMonthlyAttendance;
+
 namespace VovinamERP.Api.Controllers;
 
 [ApiController]
@@ -196,4 +198,49 @@ public async Task<ActionResult<ScanStudentQrResult>> ScanStudentQr(
 
     return Ok(result.Value);
 }
+
+[HttpGet("students/{studentId:guid}/monthly")]
+[ProducesResponseType(
+    typeof(GetStudentMonthlyAttendanceResult),
+    StatusCodes.Status200OK)]
+[ProducesResponseType(StatusCodes.Status400BadRequest)]
+[ProducesResponseType(StatusCodes.Status404NotFound)]
+public async Task<IActionResult> GetStudentMonthlyAttendance(
+    Guid studentId,
+    [FromQuery] Guid tenantId,
+    [FromQuery] int year,
+    [FromQuery] int month,
+    CancellationToken cancellationToken)
+{
+    var query = new GetStudentMonthlyAttendanceQuery(
+        tenantId,
+        studentId,
+        year,
+        month);
+
+    var result = await _sender.Send(
+        query,
+        cancellationToken);
+
+    if (result.IsFailure || result.Value is null)
+    {
+        if (result.Error.Code == "ATTENDANCE_034")
+        {
+            return NotFound(new
+            {
+                Code = result.Error.Code,
+                Message = result.Error.Message
+            });
+        }
+
+        return BadRequest(new
+        {
+            Code = result.Error.Code,
+            Message = result.Error.Message
+        });
+    }
+
+    return Ok(result.Value);
+}
+
 }

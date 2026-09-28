@@ -1,11 +1,17 @@
 using VovinamERP.Application.DependencyInjection;
 using VovinamERP.Infrastructure.DependencyInjection;
+using VovinamERP.Api.Services;
+using VovinamERP.Api.ExceptionHandling;
+using VovinamERP.Infrastructure.Persistence.Bootstrap;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
+builder.Services.AddSingleton<IQrCodeImageService, QrCodeImageService>();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -29,8 +35,15 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+app.UseExceptionHandler();
+
+await DatabaseBootstrapper.BootstrapAsync(app.Services);
+
 app.UseHttpsRedirection();
 app.UseCors("LocalDevelopment");
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 

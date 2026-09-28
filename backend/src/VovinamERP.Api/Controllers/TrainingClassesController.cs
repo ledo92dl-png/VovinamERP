@@ -5,6 +5,8 @@ using VovinamERP.Api.Contracts.TrainingClasses;
 using VovinamERP.Domain.Organizations;
 using VovinamERP.Domain.Training;
 using VovinamERP.Infrastructure.Persistence;
+using MediatR;
+using VovinamERP.Application.Training.CreateTrainingClass;
 
 namespace VovinamERP.Api.Controllers;
 
@@ -13,56 +15,61 @@ namespace VovinamERP.Api.Controllers;
 public sealed class TrainingClassesController : ControllerBase
 {
     private readonly VovinamDbContext _dbContext;
+private readonly ISender _sender;
 
-    public TrainingClassesController(VovinamDbContext dbContext)
-    {
-        _dbContext = dbContext;
-    }
+public TrainingClassesController(
+    VovinamDbContext dbContext,
+    ISender sender)
+{
+    _dbContext = dbContext;
+    _sender = sender;
+}
 
     [HttpPost]
-    public async Task<ActionResult<TrainingClassResponse>> Create(
-        [FromBody] CreateTrainingClassRequest request,
-        CancellationToken cancellationToken)
+public async Task<IActionResult> Create(
+    [FromBody] CreateTrainingClassRequest request,
+    CancellationToken cancellationToken)
+{
+    var command = new CreateTrainingClassCommand(
+        request.TenantId,
+        request.OrganizationId,
+        request.Code,
+        request.Name,
+        request.Description);
+
+    var result = await _sender.Send(
+        command,
+        cancellationToken);
+
+    if (result.IsFailure)
     {
-        var organizationExists = await _dbContext.Set<Organization>()
-            .AsNoTracking()
-            .AnyAsync(x =>
-                x.Id == request.OrganizationId &&
-                x.TenantId == request.TenantId &&
-                !x.IsArchived,
-                cancellationToken);
+        if (result.Error.Code == "TRAINING_020")
+        {
+            return Conflict(new
+            {
+                Code = result.Error.Code,
+                Message = result.Error.Message
+            });
+        }
 
-        if (!organizationExists)
-            return BadRequest("Organization was not found or does not belong to the specified tenant.");
-
-        var codeExists = await _dbContext.Set<TrainingClass>()
-            .AsNoTracking()
-            .AnyAsync(x =>
-                x.TenantId == request.TenantId &&
-                x.Code == request.Code &&
-                !x.IsArchived,
-                cancellationToken);
-
-        if (codeExists)
-            return Conflict("Training class code already exists in this tenant.");
-
-        var result = TrainingClass.Create(
-            request.TenantId,
-            request.OrganizationId,
-            request.Code,
-            request.Name,
-            request.Description);
-
-        if (result.IsFailure || result.Value is null)
-            return BadRequest(result.Error);
-
-        _dbContext.Set<TrainingClass>().Add(result.Value);
-        await _dbContext.SaveChangesAsync(cancellationToken);
-
-        var response = TrainingClassResponse.FromDomain(result.Value);
-
-        return CreatedAtAction(nameof(GetById), new { id = response.Id }, response);
+        return BadRequest(new
+        {
+            Code = result.Error.Code,
+            Message = result.Error.Message
+        });
     }
+
+    return CreatedAtAction(
+        nameof(GetById),
+        new
+        {
+            id = result.Value
+        },
+        new
+        {
+            Id = result.Value
+        });
+}
 
     [HttpGet]
     public async Task<ActionResult<PagedResult<TrainingClassResponse>>> GetList(

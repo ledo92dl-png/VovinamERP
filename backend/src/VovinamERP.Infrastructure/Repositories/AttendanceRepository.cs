@@ -574,4 +574,44 @@ public async Task<IReadOnlyList<CrossLocationOrganizationItem>>
         .ThenBy(x => x.OrganizationName)
         .ToList();
 }
+
+    public async Task<int> CountStudentAttendancesByMonthAsync(
+    Guid tenantId,
+    Guid studentId,
+    int year,
+    int month,
+    CancellationToken cancellationToken = default)
+{
+    var fromDate = new DateOnly(year, month, 1);
+    var toDate = fromDate.AddMonths(1);
+
+    var query =
+        from detail in _context.Set<AttendanceDetail>()
+            .AsNoTracking()
+        join record in _context.Set<AttendanceRecord>()
+            .AsNoTracking()
+            on detail.AttendanceRecordId equals record.Id
+        join session in _context.Set<TrainingSession>()
+            .AsNoTracking()
+            on record.TrainingSessionId equals session.Id
+        where
+            detail.TenantId == tenantId &&
+            record.TenantId == tenantId &&
+            session.TenantId == tenantId &&
+            detail.StudentId == studentId &&
+            !detail.IsArchived &&
+            !record.IsArchived &&
+            !session.IsArchived &&
+            (detail.Status == AttendanceStatus.Present ||
+             detail.Status == AttendanceStatus.Late) &&
+            session.SessionDate >= fromDate &&
+            session.SessionDate < toDate
+        select session.Id;
+
+    return await query
+        .Distinct()
+        .CountAsync(cancellationToken);
+}
+
+
 }

@@ -10,6 +10,8 @@ using VovinamERP.Domain.Students;
 using VovinamERP.Infrastructure.Persistence;
 using System.Text;
 using VovinamERP.Api.Services;
+using VovinamERP.Application.Finance.GetStudentTuitionHistory;
+using VovinamERP.Application.Finance.GetStudentCreditHistory;
 
 namespace VovinamERP.Api.Controllers;
 
@@ -366,4 +368,59 @@ public async Task<IActionResult> GetStudentQrSvg(
         "image/svg+xml",
         $"student-{result.MemberNumber}-qr.svg");
 }
+
+    [HttpGet("{studentId:guid}/tuition-history")]
+public async Task<IActionResult> GetTuitionHistory(
+    Guid studentId,
+    [FromQuery] Guid tenantId,
+    [FromQuery] int months = 6,
+    CancellationToken cancellationToken = default)
+{
+    var query = new GetStudentTuitionHistoryQuery(
+        tenantId,
+        studentId,
+        months);
+
+    var result = await _sender.Send(
+        query,
+        cancellationToken);
+
+    if (result.IsFailure || result.Value is null)
+    {
+        return BadRequest(new
+        {
+            Code = result.Error.Code,
+            Message = result.Error.Message
+        });
+    }
+
+    return Ok(result.Value);
+}
+
+[HttpGet("{studentId:guid}/credit-history")]
+public async Task<IActionResult> GetCreditHistory(
+    Guid studentId,
+    [FromQuery] Guid tenantId,
+    CancellationToken cancellationToken = default)
+{
+    var query = new GetStudentCreditHistoryQuery(
+        tenantId,
+        studentId);
+
+    var result = await _sender.Send(
+        query,
+        cancellationToken);
+
+    if (result.IsFailure || result.Value is null)
+    {
+        return BadRequest(new
+        {
+            Code = result.Error.Code,
+            Message = result.Error.Message
+        });
+    }
+
+    return Ok(result.Value);
+}
+
 }

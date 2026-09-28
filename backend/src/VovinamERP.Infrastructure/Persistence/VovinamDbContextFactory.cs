@@ -9,8 +9,15 @@ public sealed class VovinamDbContextFactory : IDesignTimeDbContextFactory<Vovina
     {
         var optionsBuilder = new DbContextOptionsBuilder<VovinamDbContext>();
 
-        var connectionString = Environment.GetEnvironmentVariable("VOVINAMERP_CONNECTION_STRING")
-            ?? "Host=localhost;Port=5432;Database=vovinam_erp;Username=postgres;Password=postgres";
+       var connectionString =
+    Environment.GetEnvironmentVariable(
+        "VOVINAMERP_CONNECTION_STRING");
+
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException(
+        "Environment variable 'VOVINAMERP_CONNECTION_STRING' is not configured.");
+}
 
         optionsBuilder.UseNpgsql(connectionString);
 
