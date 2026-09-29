@@ -102,4 +102,64 @@ public sealed class ReceiptLockTransaction
         await command.ExecuteScalarAsync(
             cancellationToken);
     }
+    public async Task LockTuitionInvoicesAsync(
+        Guid tenantId,
+        IReadOnlyCollection<Guid> tuitionInvoiceIds,
+        CancellationToken cancellationToken = default)
+    {
+        var invoiceIds = tuitionInvoiceIds
+            .Where(x => x != Guid.Empty)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToArray();
+
+        foreach (var invoiceId in invoiceIds)
+        {
+            await using var command =
+                _dbContext.Database
+                    .GetDbConnection()
+                    .CreateCommand();
+
+            var currentTransaction =
+                _dbContext.Database.CurrentTransaction;
+
+            if (currentTransaction is null)
+            {
+                throw new InvalidOperationException(
+                    "Tuition invoice locks require an active transaction.");
+            }
+
+            command.Transaction =
+                currentTransaction.GetDbTransaction();
+
+            command.CommandText = """
+                SELECT "Id"
+                FROM "TuitionInvoices"
+                WHERE "TenantId" = @tenantId
+                  AND "Id" = @invoiceId
+                FOR UPDATE
+                """;
+
+            var tenantParameter =
+                command.CreateParameter();
+
+            tenantParameter.ParameterName = "tenantId";
+            tenantParameter.Value = tenantId;
+
+            command.Parameters.Add(
+                tenantParameter);
+
+            var invoiceParameter =
+                command.CreateParameter();
+
+            invoiceParameter.ParameterName = "invoiceId";
+            invoiceParameter.Value = invoiceId;
+
+            command.Parameters.Add(
+                invoiceParameter);
+
+            await command.ExecuteScalarAsync(
+                cancellationToken);
+        }
+    }
 }

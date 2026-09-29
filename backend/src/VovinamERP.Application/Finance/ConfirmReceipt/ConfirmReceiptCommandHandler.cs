@@ -72,6 +72,20 @@ public sealed class ConfirmReceiptCommandHandler
                 {
                     return confirmResult;
                 }
+                                var tuitionInvoiceIds =
+                    receipt.Items
+                        .Where(x =>
+                            x.ItemType == ReceiptItemType.Tuition &&
+                            x.ReferenceId.HasValue &&
+                            x.ReferenceId.Value != Guid.Empty)
+                        .Select(x => x.ReferenceId!.Value)
+                        .Distinct()
+                        .ToArray();
+
+                await _receiptTransaction.LockTuitionInvoicesAsync(
+                    request.TenantId,
+                    tuitionInvoiceIds,
+                    ct);
 
                 foreach (var item in receipt.Items)
                 {

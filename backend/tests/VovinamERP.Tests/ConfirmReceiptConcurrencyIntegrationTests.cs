@@ -195,6 +195,215 @@ public class ConfirmReceiptConcurrencyIntegrationTests
             200_000m,
             totalCredit);
     }
+        [Fact]
+    public async Task ConcurrentDifferentReceipts_ShouldNotOverpaySameTuitionInvoice()
+    {
+        var tenantId = Guid.NewGuid();
+        var studentId = Guid.NewGuid();
+        var collectorId = Guid.NewGuid();
+
+        Guid invoiceId;
+        Guid receiptAId;
+        Guid receiptBId;
+
+        // One tuition invoice has a remaining balance of 300,000.
+        // Two different receipts each try to pay 300,000 concurrently.
+        await using (var setupDb = TestDatabase.CreateContext())
+        {
+            var invoiceResult =
+                TuitionInvoice.CreateMonthlyInvoice(
+                    tenantId,
+                    studentId,
+                    $"HP-{Guid.NewGuid():N}",
+                    2027,
+                    5,
+                    300_000m,
+                    0m,
+                    null);
+
+            Assert.True(invoiceResult.IsSuccess);
+            Assert.NotNull(invoiceResult.Value);
+
+            var invoice = invoiceResult.Value!;
+            invoiceId = invoice.Id;
+
+            setupDb.TuitionInvoices.Add(invoice);
+
+            var receiptAResult =
+                Receipt.Create(
+                    tenantId,
+                    collectorId,
+                    $"PT-A-{Guid.NewGuid():N}",
+                    PaymentMethod.Cash,
+                    new DateOnly(2027, 5, 10),
+                    null,
+                    null,
+                    "Concurrent different receipt A");
+
+            Assert.True(receiptAResult.IsSuccess);
+            Assert.NotNull(receiptAResult.Value);
+
+            var receiptA = receiptAResult.Value!;
+            receiptAId = receiptA.Id;
+
+            var itemAResult =
+                ReceiptItem.Create(
+                    tenantId,
+                    receiptA.Id,
+                    studentId,
+                    ReceiptItemType.Tuition,
+                    invoice.Id,
+                    "Tuition payment A",
+                    1m,
+                    300_000m,
+                    0m,
+                    null);
+
+            Assert.True(itemAResult.IsSuccess);
+            Assert.NotNull(itemAResult.Value);
+
+            var addItemAResult =
+                receiptA.AddItem(itemAResult.Value!);
+
+            Assert.True(addItemAResult.IsSuccess);
+
+            var receiptBResult =
+                Receipt.Create(
+                    tenantId,
+                    collectorId,
+                    $"PT-B-{Guid.NewGuid():N}",
+                    PaymentMethod.Cash,
+                    new DateOnly(2027, 5, 10),
+                    null,
+                    null,
+                    "Concurrent different receipt B");
+
+            Assert.True(receiptBResult.IsSuccess);
+            Assert.NotNull(receiptBResult.Value);
+
+            var receiptB = receiptBResult.Value!;
+            receiptBId = receiptB.Id;
+
+            var itemBResult =
+                ReceiptItem.Create(
+                    tenantId,
+                    receiptB.Id,
+                    studentId,
+                    ReceiptItemType.Tuition,
+                    invoice.Id,
+                    "Tuition payment B",
+                    1m,
+                    300_000m,
+                    0m,
+                    null);
+
+            Assert.True(itemBResult.IsSuccess);
+            Assert.NotNull(itemBResult.Value);
+
+            var addItemBResult =
+                receiptB.AddItem(itemBResult.Value!);
+
+            Assert.True(addItemBResult.IsSuccess);
+
+            setupDb.Receipts.Add(receiptA);
+            setupDb.Receipts.Add(receiptB);
+
+            await setupDb.SaveChangesAsync();
+        }
+
+        // Two independent DbContexts simulate two requests confirming
+        // different receipts at the same time.
+        await using var dbA = TestDatabase.CreateContext();
+        await using var dbB = TestDatabase.CreateContext();
+
+        var handlerA =
+            new ConfirmReceiptCommandHandler(
+                new ReceiptRepository(dbA),
+                new TuitionInvoiceRepository(dbA),
+                new StudentCreditRepository(dbA),
+                dbA,
+                new ReceiptLockTransaction(dbA));
+
+        var handlerB =
+            new ConfirmReceiptCommandHandler(
+                new ReceiptRepository(dbB),
+                new TuitionInvoiceRepository(dbB),
+                new StudentCreditRepository(dbB),
+                dbB,
+                new ReceiptLockTransaction(dbB));
+
+        var commandA =
+            new ConfirmReceiptCommand(
+                tenantId,
+                receiptAId);
+
+        var commandB =
+            new ConfirmReceiptCommand(
+                tenantId,
+                receiptBId);
+
+        var taskA =
+            CaptureAsync(() =>
+                handlerA.Handle(
+                    commandA,
+                    CancellationToken.None));
+
+        var taskB =
+            CaptureAsync(() =>
+                handlerB.Handle(
+                    commandB,
+                    CancellationToken.None));
+
+        var outcomes =
+            await Task.WhenAll(taskA, taskB);
+
+        // Both receipt confirmations are valid requests.
+        Assert.Equal(
+            2,
+            outcomes.Count(x => x.Succeeded));
+
+        // Verify the final database state.
+        await using var verifyDb = TestDatabase.CreateContext();
+
+        var savedInvoice =
+            await verifyDb.TuitionInvoices
+                .AsNoTracking()
+                .Include(x => x.Payments)
+                .SingleAsync(x =>
+                    x.Id == invoiceId);
+
+        var totalPayments =
+            savedInvoice.Payments.Sum(x => x.Amount);
+
+        var credits =
+            await verifyDb.StudentCreditTransactions
+                .AsNoTracking()
+                .Where(x =>
+                    x.TenantId == tenantId &&
+                    x.StudentId == studentId &&
+                    x.TransactionType ==
+                        StudentCreditTransactionType.Credit &&
+                    (x.ReceiptId == receiptAId ||
+                     x.ReceiptId == receiptBId))
+                .ToListAsync();
+
+        var totalCredits =
+            credits.Sum(x => x.Amount);
+
+        // The invoice must never receive more than its 300,000 balance.
+        Assert.Equal(
+            300_000m,
+            totalPayments);
+
+        Assert.Equal(
+            0m,
+            savedInvoice.BalanceAmount);
+
+        // The other 300,000 must be preserved as Student Credit.
+        Assert.Equal(
+            300_000m,
+            totalCredits);
+    }
 
     private static async Task<RequestOutcome> CaptureAsync(
         Func<Task<VovinamERP.SharedKernel.Results.Result>> action)

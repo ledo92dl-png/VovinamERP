@@ -9,4 +9,9 @@ public interface IReceiptTransaction
         Guid receiptId,
         Func<CancellationToken, Task<Result>> operation,
         CancellationToken cancellationToken = default);
+
+    Task LockTuitionInvoicesAsync(
+        Guid tenantId,
+        IReadOnlyCollection<Guid> tuitionInvoiceIds,
+        CancellationToken cancellationToken = default);
 }
