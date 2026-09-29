@@ -570,4 +570,190 @@ public async Task ConfirmReceiptTwice_ShouldNotDuplicatePaymentOrStudentCredit()
         200_000m,
         totalCredit);
 }
+    [Fact]
+    public async Task ReceiptWithMultipleTuitionItems_ShouldPayMultipleInvoices()
+    {
+        var tenantId = Guid.NewGuid();
+        var studentId = Guid.NewGuid();
+        var collectorId = Guid.NewGuid();
+
+        await using var db =
+            TestDatabase.CreateContext();
+
+        var invoiceAResult =
+            TuitionInvoice.CreateMonthlyInvoice(
+                tenantId,
+                studentId,
+                $"HP-A-{Guid.NewGuid():N}",
+                2027,
+                6,
+                300_000m,
+                0m,
+                null);
+
+        var invoiceBResult =
+            TuitionInvoice.CreateMonthlyInvoice(
+                tenantId,
+                studentId,
+                $"HP-B-{Guid.NewGuid():N}",
+                2027,
+                7,
+                200_000m,
+                0m,
+                null);
+
+        Assert.True(invoiceAResult.IsSuccess);
+        Assert.True(invoiceBResult.IsSuccess);
+        Assert.NotNull(invoiceAResult.Value);
+        Assert.NotNull(invoiceBResult.Value);
+
+        var invoiceA = invoiceAResult.Value!;
+        var invoiceB = invoiceBResult.Value!;
+
+        db.TuitionInvoices.Add(invoiceA);
+        db.TuitionInvoices.Add(invoiceB);
+
+        var receiptResult =
+            Receipt.Create(
+                tenantId,
+                collectorId,
+                $"PT-{Guid.NewGuid():N}",
+                PaymentMethod.Cash,
+                new DateOnly(2027, 6, 10),
+                null,
+                null,
+                "Multiple tuition invoices");
+
+        Assert.True(receiptResult.IsSuccess);
+        Assert.NotNull(receiptResult.Value);
+
+        var receipt = receiptResult.Value!;
+
+        var itemAResult =
+            ReceiptItem.Create(
+                tenantId,
+                receipt.Id,
+                studentId,
+                ReceiptItemType.Tuition,
+                invoiceA.Id,
+                "June tuition",
+                1m,
+                300_000m,
+                0m,
+                null);
+
+        var itemBResult =
+            ReceiptItem.Create(
+                tenantId,
+                receipt.Id,
+                studentId,
+                ReceiptItemType.Tuition,
+                invoiceB.Id,
+                "July tuition",
+                1m,
+                200_000m,
+                0m,
+                null);
+
+        Assert.True(itemAResult.IsSuccess);
+        Assert.True(itemBResult.IsSuccess);
+        Assert.NotNull(itemAResult.Value);
+        Assert.NotNull(itemBResult.Value);
+
+        Assert.True(
+            receipt.AddItem(itemAResult.Value!).IsSuccess);
+
+        Assert.True(
+            receipt.AddItem(itemBResult.Value!).IsSuccess);
+
+        db.Receipts.Add(receipt);
+
+        await db.SaveChangesAsync();
+
+        var handler =
+            new ConfirmReceiptCommandHandler(
+                new ReceiptRepository(db),
+                new TuitionInvoiceRepository(db),
+                new StudentCreditRepository(db),
+                db,
+                new ReceiptLockTransaction(db));
+
+        var result =
+            await handler.Handle(
+                new ConfirmReceiptCommand(
+                    tenantId,
+                    receipt.Id),
+                CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+
+        db.ChangeTracker.Clear();
+
+        var savedReceipt =
+            await db.Receipts
+                .AsNoTracking()
+                .SingleAsync(x =>
+                    x.Id == receipt.Id);
+
+        Assert.Equal(
+            ReceiptStatus.Confirmed,
+            savedReceipt.Status);
+
+        var savedInvoiceA =
+            await db.TuitionInvoices
+                .AsNoTracking()
+                .Include(x => x.Payments)
+                .SingleAsync(x =>
+                    x.Id == invoiceA.Id);
+
+        var savedInvoiceB =
+            await db.TuitionInvoices
+                .AsNoTracking()
+                .Include(x => x.Payments)
+                .SingleAsync(x =>
+                    x.Id == invoiceB.Id);
+
+        Assert.Equal(
+            300_000m,
+            savedInvoiceA.PaidAmount);
+
+        Assert.Equal(
+            0m,
+            savedInvoiceA.BalanceAmount);
+
+        var paymentA =
+            Assert.Single(savedInvoiceA.Payments);
+
+        Assert.Equal(
+            300_000m,
+            paymentA.Amount);
+
+        Assert.Equal(
+            200_000m,
+            savedInvoiceB.PaidAmount);
+
+        Assert.Equal(
+            0m,
+            savedInvoiceB.BalanceAmount);
+
+        var paymentB =
+            Assert.Single(savedInvoiceB.Payments);
+
+        Assert.Equal(
+            200_000m,
+            paymentB.Amount);
+
+        var credits =
+            await db.StudentCreditTransactions
+                .AsNoTracking()
+                .Where(x =>
+                    x.TenantId == tenantId &&
+                    x.StudentId == studentId &&
+                    x.TransactionType ==
+                        StudentCreditTransactionType.Credit &&
+                    x.ReceiptId == receipt.Id)
+                .ToListAsync();
+
+        Assert.Empty(credits);
+    }
 }
