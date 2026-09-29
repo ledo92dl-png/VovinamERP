@@ -400,4 +400,171 @@ public async Task Overpayment_ShouldAutomaticallyApplyToNextMonthTuition()
         februaryInvoice.Id,
         februaryCreditDebit.TuitionInvoiceId);
 }
+[Fact]
+public async Task ConfirmReceiptTwice_ShouldNotDuplicatePaymentOrStudentCredit()
+{
+    await using var db = TestDatabase.CreateContext();
+
+    var tenantId = Guid.NewGuid();
+    var studentId = Guid.NewGuid();
+    var collectorId = Guid.NewGuid();
+
+    // Invoice balance: 300,000.
+    var invoiceResult =
+        TuitionInvoice.CreateMonthlyInvoice(
+            tenantId,
+            studentId,
+            $"HP-{Guid.NewGuid():N}",
+            2027,
+            3,
+            300_000m,
+            0m,
+            null);
+
+    Assert.True(invoiceResult.IsSuccess);
+    Assert.NotNull(invoiceResult.Value);
+
+    var invoice = invoiceResult.Value!;
+
+    db.TuitionInvoices.Add(invoice);
+
+    // Receipt amount: 500,000.
+    var receiptResult =
+        Receipt.Create(
+            tenantId,
+            collectorId,
+            $"PT-{Guid.NewGuid():N}",
+            PaymentMethod.Cash,
+            new DateOnly(2027, 3, 10),
+            null,
+            null,
+            "Receipt idempotence integration test");
+
+    Assert.True(receiptResult.IsSuccess);
+    Assert.NotNull(receiptResult.Value);
+
+    var receipt = receiptResult.Value!;
+
+    var itemResult =
+        ReceiptItem.Create(
+            tenantId,
+            receipt.Id,
+            studentId,
+            ReceiptItemType.Tuition,
+            invoice.Id,
+            "Tuition payment",
+            1m,
+            500_000m,
+            0m,
+            null);
+
+    Assert.True(itemResult.IsSuccess);
+    Assert.NotNull(itemResult.Value);
+
+    var item = itemResult.Value!;
+
+    var addItemResult =
+        receipt.AddItem(item);
+
+    Assert.True(addItemResult.IsSuccess);
+
+    db.Receipts.Add(receipt);
+
+    await db.SaveChangesAsync();
+
+    var handler =
+        new ConfirmReceiptCommandHandler(
+            new ReceiptRepository(db),
+            new TuitionInvoiceRepository(db),
+            new StudentCreditRepository(db),
+            db);
+
+    // First confirmation.
+    var firstResult =
+        await handler.Handle(
+            new ConfirmReceiptCommand(
+                tenantId,
+                receipt.Id),
+            CancellationToken.None);
+
+    Assert.True(firstResult.IsSuccess);
+
+    // Second confirmation of the same receipt.
+    var secondResult =
+        await handler.Handle(
+            new ConfirmReceiptCommand(
+                tenantId,
+                receipt.Id),
+            CancellationToken.None);
+
+    Assert.True(secondResult.IsSuccess);
+
+    db.ChangeTracker.Clear();
+
+    var savedReceipt =
+        await db.Receipts
+            .AsNoTracking()
+            .SingleAsync(x =>
+                x.Id == receipt.Id);
+
+    Assert.Equal(
+        ReceiptStatus.Confirmed,
+        savedReceipt.Status);
+
+    var savedInvoice =
+        await db.TuitionInvoices
+            .AsNoTracking()
+            .Include(x => x.Payments)
+            .SingleAsync(x =>
+                x.Id == invoice.Id);
+
+    // The invoice must contain only one payment.
+    var payment =
+        Assert.Single(savedInvoice.Payments);
+
+    Assert.Equal(
+        300_000m,
+        payment.Amount);
+
+    Assert.Equal(
+        0m,
+        savedInvoice.BalanceAmount);
+
+    // The overpayment must create only one credit transaction.
+    var credits =
+        await db.StudentCreditTransactions
+            .AsNoTracking()
+            .Where(x =>
+                x.TenantId == tenantId &&
+                x.StudentId == studentId &&
+                x.TransactionType ==
+                    StudentCreditTransactionType.Credit &&
+                x.ReceiptId == receipt.Id)
+            .ToListAsync();
+
+    var credit =
+        Assert.Single(credits);
+
+    Assert.Equal(
+        200_000m,
+        credit.Amount);
+
+    // Final credit balance must still be exactly 200,000,
+    // not 400,000.
+    var totalCredit =
+        await db.StudentCreditTransactions
+            .AsNoTracking()
+            .Where(x =>
+                x.TenantId == tenantId &&
+                x.StudentId == studentId)
+            .SumAsync(x =>
+                x.TransactionType ==
+                    StudentCreditTransactionType.Credit
+                    ? x.Amount
+                    : -x.Amount);
+
+    Assert.Equal(
+        200_000m,
+        totalCredit);
+}
 }
