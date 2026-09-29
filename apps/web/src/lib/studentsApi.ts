@@ -95,3 +95,41 @@ export async function createStudent(
 
   return response.json() as Promise<Student>
 }
+export type UpdateStudentInput = {
+  tenantId: string
+  fullName: string
+  gender: number
+  dateOfBirth: string | null
+  phoneNumber: string | null
+  email: string | null
+  address: string | null
+  avatarUrl: string | null
+  currentBeltRankId: string | null
+  martialName: string | null
+  introducedBy: string | null
+  martialProfileNote: string | null
+}
+
+export async function updateStudent(
+  studentId: string,
+  input: UpdateStudentInput,
+  signal?: AbortSignal,
+): Promise<Student> {
+  const response = await fetch(`${API_BASE_URL}/api/students/${studentId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+    signal,
+  })
+
+  if (!response.ok) {
+    const message = await response.text()
+    throw new Error(
+      message || `Unable to update student (${response.status}).`,
+    )
+  }
+
+  return response.json() as Promise<Student>
+}

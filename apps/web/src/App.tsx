@@ -9,6 +9,7 @@ import StudentDetailPage from './pages/StudentDetailPage'
 import StudentsPage from './pages/StudentsPage'
 import './App.css'
 import NewStudentPage from './pages/NewStudentPage'
+import EditStudentPage from './pages/EditStudentPage'
 
 const router = createBrowserRouter([
   {
@@ -27,10 +28,14 @@ const router = createBrowserRouter([
   path: 'students/new',
   element: <NewStudentPage />,
 },
-      {
-        path: 'students/:studentId',
-        element: <StudentDetailPage />,
-      },
+{
+  path: 'students/:studentId/edit',
+  element: <EditStudentPage />,
+},
+{
+  path: 'students/:studentId',
+  element: <StudentDetailPage />,
+},
       {
         path: 'attendance',
         element: (

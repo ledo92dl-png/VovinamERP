@@ -79,7 +79,7 @@ export default function StudentDetailPage() {
     <div className="page">
       <Link className="back-link" to="/students">
         <ArrowLeft size={18} />
-        Danh sách môn sinh
+        Danh sách Môn sinh
       </Link>
 
       {loading && (
@@ -113,9 +113,12 @@ export default function StudentDetailPage() {
               </p>
             </div>
 
-            <button className="secondary-button" type="button">
+            <Link
+              className="secondary-button"
+              to={`/students/${student.studentId}/edit`}
+            >
               Chỉnh sửa
-            </button>
+            </Link>
           </section>
 
           <section className="detail-card">
@@ -125,7 +128,7 @@ export default function StudentDetailPage() {
             </div>
 
             <div className="detail-row">
-              <span>Ngày nhập môn</span>
+              <span>Ngày tham gia CLB</span>
               <strong>{formatDate(student.enrollmentDate)}</strong>
             </div>
 
