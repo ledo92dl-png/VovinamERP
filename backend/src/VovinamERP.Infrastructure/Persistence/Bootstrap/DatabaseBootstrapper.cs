@@ -1,10 +1,11 @@
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using VovinamERP.Domain.Tenants;
 using VovinamERP.Infrastructure.Identity;
 using VovinamERP.Domain.Organizations;
+using VovinamERP.Domain.Belts;
 
 namespace VovinamERP.Infrastructure.Persistence.Bootstrap;
 
@@ -56,7 +57,7 @@ public static class DatabaseBootstrapper
         {
             var tenantResult = Tenant.Create(
                 tenantCode,
-                "Vovinam Tam Phước");
+                "Vovinam Tam PhÆ°á»›c");
 
             if (tenantResult.IsFailure ||
                 tenantResult.Value is null)
@@ -93,7 +94,7 @@ if (organization is null)
         tenant.Id,
         null,
         organizationCode,
-        "Vovinam Tam Phước",
+        "Vovinam Tam PhÆ°á»›c",
         OrganizationType.Club,
         null,
         null,
@@ -116,8 +117,66 @@ if (organization is null)
         cancellationToken);
 }
 
+                // -------------------------------------------------
+        // 3. BELT RANKS
         // -------------------------------------------------
-        // 3. ROLES
+
+        var defaultBeltRanks = new[]
+        {
+            new { Code = "TVNM",       Name = "Tá»± vá»‡ nháº­p mÃ´n",       Level = 1 },
+            new { Code = "LAM",        Name = "Lam Ä‘ai",              Level = 2 },
+            new { Code = "LAM-1",      Name = "Lam Ä‘ai I",            Level = 3 },
+            new { Code = "LAM-2",      Name = "Lam Ä‘ai II",           Level = 4 },
+            new { Code = "LAM-3",      Name = "Lam Ä‘ai III",          Level = 5 },
+
+            // Hoang dai thieu nhi and Hoang dai are the same rank level.
+            new { Code = "HOANG-TN",   Name = "HoÃ ng Ä‘ai thiáº¿u nhi",  Level = 6 },
+            new { Code = "HOANG",      Name = "HoÃ ng Ä‘ai",            Level = 6 },
+
+            new { Code = "HOANG-1",    Name = "HoÃ ng Ä‘ai I",          Level = 7 },
+            new { Code = "HOANG-2",    Name = "HoÃ ng Ä‘ai II",         Level = 8 },
+            new { Code = "HOANG-3",    Name = "HoÃ ng Ä‘ai III",        Level = 9 },
+            new { Code = "CHUAN-HONG", Name = "Chuáº©n Há»“ng Ä‘ai",       Level = 10 },
+            new { Code = "HONG",       Name = "Há»“ng Ä‘ai",             Level = 11 },
+            new { Code = "HONG-1",     Name = "Há»“ng Ä‘ai I",           Level = 12 },
+            new { Code = "HONG-2",     Name = "Há»“ng Ä‘ai II",          Level = 13 },
+            new { Code = "HONG-3",     Name = "Há»“ng Ä‘ai III",         Level = 14 }
+        };
+
+        foreach (var item in defaultBeltRanks)
+        {
+            var exists = await dbContext.BeltRanks
+                .AnyAsync(
+                    x => x.BeltCode == item.Code,
+                    cancellationToken);
+
+            if (exists)
+            {
+                continue;
+            }
+
+            var beltRankResult = BeltRank.Create(
+                item.Code,
+                item.Name,
+                item.Level,
+                null);
+
+            if (beltRankResult.IsFailure ||
+                beltRankResult.Value is null)
+            {
+                throw new InvalidOperationException(
+                    beltRankResult.Error.Message);
+            }
+
+            await dbContext.BeltRanks.AddAsync(
+                beltRankResult.Value,
+                cancellationToken);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        // -------------------------------------------------
+        // 4. ROLES
         // -------------------------------------------------
 
         foreach (var roleName in DefaultRoles)
@@ -144,7 +203,7 @@ if (organization is null)
         }
 
         // -------------------------------------------------
-        // 4. INITIAL SUPER ADMIN
+        // 5. INITIAL SUPER ADMIN
         // -------------------------------------------------
 
         var adminUserName =
@@ -159,7 +218,7 @@ if (organization is null)
         if (string.IsNullOrWhiteSpace(adminUserName) ||
             string.IsNullOrWhiteSpace(adminPassword))
         {
-            // Không tạo Admin nếu chưa cấu hình secret.
+            // KhÃ´ng táº¡o Admin náº¿u chÆ°a cáº¥u hÃ¬nh secret.
             return;
         }
 
@@ -193,8 +252,8 @@ if (organization is null)
             }
         }
 
-        // Nếu user đã tồn tại nhưng TenantId chưa đúng,
-        // đồng bộ lại cho môi trường bootstrap.
+        // Náº¿u user Ä‘Ã£ tá»“n táº¡i nhÆ°ng TenantId chÆ°a Ä‘Ãºng,
+        // Ä‘á»“ng bá»™ láº¡i cho mÃ´i trÆ°á»ng bootstrap.
         if (adminUser.TenantId != tenant.Id)
         {
             adminUser.TenantId = tenant.Id;
