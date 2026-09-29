@@ -1,54 +1,125 @@
-﻿import { ChevronRight, Search, UserRound } from 'lucide-react'
+﻿import {
+  AlertCircle,
+  ChevronRight,
+  LoaderCircle,
+  Search,
+  UserRound,
+} from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { getBeltRanks, getStudents } from '../lib/studentsApi'
+import type { BeltRank, Student } from '../lib/types'
 
-type Student = {
-  id: string
-  memberNumber: string
-  fullName: string
-  birthYear: number
-  belt: string
+function getBirthYear(dateOfBirth: string | null) {
+  if (!dateOfBirth) return null
+
+  const year = Number(dateOfBirth.slice(0, 4))
+  return Number.isFinite(year) ? year : null
 }
 
-const sampleStudents: Student[] = [
-  {
-    id: 'ms-001',
-    memberNumber: 'MS001',
-    fullName: 'Nguyễn Minh Anh',
-    birthYear: 2012,
-    belt: 'Lam đai',
-  },
-  {
-    id: 'ms-002',
-    memberNumber: 'MS002',
-    fullName: 'Trần Gia Huy',
-    birthYear: 2011,
-    belt: 'Lam đai',
-  },
-  {
-    id: 'ms-003',
-    memberNumber: 'MS003',
-    fullName: 'Lê Hoàng Nam',
-    birthYear: 2010,
-    belt: 'Hoàng đai',
-  },
-  {
-    id: 'ms-004',
-    memberNumber: 'MS004',
-    fullName: 'Phạm Khánh Linh',
-    birthYear: 2013,
-    belt: 'Tự vệ nhập môn',
-  },
-]
-
-const beltOrder = ['Tự vệ nhập môn', 'Lam đai', 'Hoàng đai']
-
 export default function StudentsPage() {
-  const grouped = beltOrder
-    .map((belt) => ({
-      belt,
-      students: sampleStudents.filter((student) => student.belt === belt),
-    }))
-    .filter((group) => group.students.length > 0)
+  const [students, setStudents] = useState<Student[]>([])
+  const [beltRanks, setBeltRanks] = useState<BeltRank[]>([])
+  const [keyword, setKeyword] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [totalCount, setTotalCount] = useState(0)
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function loadData() {
+      try {
+        setLoading(true)
+        setError(null)
+
+        const [studentResult, beltResult] = await Promise.all([
+          getStudents('', controller.signal),
+          getBeltRanks(controller.signal),
+        ])
+
+        setStudents(studentResult.items)
+        setTotalCount(studentResult.totalCount)
+        setBeltRanks(beltResult)
+      } catch (err) {
+        if (controller.signal.aborted) return
+
+        console.error(err)
+        setError(
+          'Không thể tải dữ liệu Môn sinh. Hãy kiểm tra API VovinamERP đang chạy.',
+        )
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false)
+        }
+      }
+    }
+
+    void loadData()
+
+    return () => controller.abort()
+  }, [])
+
+  const beltMap = useMemo(
+    () => new Map(beltRanks.map((belt) => [belt.id, belt])),
+    [beltRanks],
+  )
+
+  const filteredStudents = useMemo(() => {
+    const normalized = keyword.trim().toLocaleLowerCase('vi')
+
+    if (!normalized) return students
+
+    return students.filter((student) => {
+      const fullName = student.fullName.toLocaleLowerCase('vi')
+      const memberNumber = student.memberNumber.toLocaleLowerCase('vi')
+      const martialName =
+        student.martialName?.toLocaleLowerCase('vi') ?? ''
+
+      return (
+        fullName.includes(normalized) ||
+        memberNumber.includes(normalized) ||
+        martialName.includes(normalized)
+      )
+    })
+  }, [students, keyword])
+
+  const groupedStudents = useMemo(() => {
+    const groups = new Map<
+      string,
+      {
+        id: string
+        name: string
+        level: number
+        students: Student[]
+      }
+    >()
+
+    for (const student of filteredStudents) {
+      const belt = student.currentBeltRankId
+        ? beltMap.get(student.currentBeltRankId)
+        : undefined
+
+      const key = belt?.id ?? 'no-belt'
+
+      if (!groups.has(key)) {
+        groups.set(key, {
+          id: key,
+          name: belt?.beltName ?? 'Chưa xếp đai',
+          level: belt?.level ?? Number.MAX_SAFE_INTEGER,
+          students: [],
+        })
+      }
+
+      groups.get(key)!.students.push(student)
+    }
+
+    return [...groups.values()].sort(
+      (a, b) =>
+        a.level - b.level ||
+        a.name.localeCompare(b.name, 'vi'),
+    )
+  }, [beltMap, filteredStudents])
 
   return (
     <div className="page">
@@ -56,8 +127,13 @@ export default function StudentsPage() {
         <div>
           <span className="eyebrow">QUẢN LÝ MÔN SINH</span>
           <h1>Môn sinh đang theo tập</h1>
-          <p>Danh sách được nhóm theo đai hiện tại.</p>
+          <p>
+            {loading
+              ? 'Đang tải dữ liệu...'
+              : `${totalCount} môn sinh trong hệ thống`}
+          </p>
         </div>
+
         <button className="primary-button" type="button">
           + Thêm môn sinh
         </button>
@@ -67,52 +143,87 @@ export default function StudentsPage() {
         <Search size={20} />
         <input
           type="search"
-          placeholder="Tìm theo tên hoặc mã môn sinh..."
+          value={keyword}
+          onChange={(event) => setKeyword(event.target.value)}
+          placeholder="Tìm theo tên, mã hoặc võ danh..."
           aria-label="Tìm môn sinh"
         />
       </div>
 
-      <div className="belt-groups">
-        {grouped.map((group) => (
-          <section className="belt-group" key={group.belt}>
-            <div className="belt-heading">
-              <div>
-                <span className="belt-dot" />
-                <h2>{group.belt}</h2>
+      {loading && (
+        <div className="state-card">
+          <LoaderCircle className="spin" size={28} />
+          <strong>Đang tải Môn sinh...</strong>
+          <span>Đang kết nối với VovinamERP API.</span>
+        </div>
+      )}
+
+      {!loading && error && (
+        <div className="state-card error-state">
+          <AlertCircle size={28} />
+          <strong>Không tải được dữ liệu</strong>
+          <span>{error}</span>
+        </div>
+      )}
+
+      {!loading && !error && groupedStudents.length === 0 && (
+        <div className="state-card">
+          <UserRound size={28} />
+          <strong>Không tìm thấy Môn sinh</strong>
+          <span>
+            {keyword
+              ? 'Thử tìm bằng tên hoặc mã Môn sinh khác.'
+              : 'Hệ thống chưa có dữ liệu Môn sinh.'}
+          </span>
+        </div>
+      )}
+
+      {!loading && !error && groupedStudents.length > 0 && (
+        <div className="belt-groups">
+          {groupedStudents.map((group) => (
+            <section className="belt-group" key={group.id}>
+              <div className="belt-heading">
+                <div>
+                  <span className="belt-dot" />
+                  <h2>{group.name}</h2>
+                </div>
+                <span>{group.students.length} môn sinh</span>
               </div>
-              <span>{group.students.length} môn sinh</span>
-            </div>
 
-            <div className="student-list">
-              {group.students.map((student) => (
-                <Link
-                  to={`/students/${student.id}`}
-                  className="student-row"
-                  key={student.id}
-                >
-                  <div className="student-avatar">
-                    <UserRound size={22} />
-                  </div>
+              <div className="student-list">
+                {group.students.map((student) => {
+                  const birthYear = getBirthYear(student.dateOfBirth)
 
-                  <div className="student-main">
-                    <strong>{student.fullName}</strong>
-                    <span>
-                      {student.memberNumber} · Sinh năm {student.birthYear}
-                    </span>
-                  </div>
+                  return (
+                    <Link
+                      to={`/students/${student.studentId}`}
+                      className="student-row"
+                      key={student.studentId}
+                    >
+                      <div className="student-avatar">
+                        <UserRound size={22} />
+                      </div>
 
-                  <ChevronRight size={20} />
-                </Link>
-              ))}
-            </div>
-          </section>
-        ))}
-      </div>
+                      <div className="student-main">
+                        <strong>{student.fullName}</strong>
+                        <span>
+                          {student.memberNumber}
+                          {birthYear ? ` · Sinh năm ${birthYear}` : ''}
+                          {student.martialName
+                            ? ` · Võ danh: ${student.martialName}`
+                            : ''}
+                        </span>
+                      </div>
 
-      <p className="prototype-note">
-        Dữ liệu đang là dữ liệu mẫu để kiểm tra giao diện. Bước tiếp theo
-        sẽ lấy danh sách thật từ API.
-      </p>
+                      <ChevronRight size={20} />
+                    </Link>
+                  )
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

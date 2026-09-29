@@ -1,4 +1,4 @@
-using VovinamERP.Application.Students.RegenerateStudentQr;
+﻿using VovinamERP.Application.Students.RegenerateStudentQr;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using VovinamERP.Application.Students.GetStudentQr;
@@ -95,7 +95,7 @@ public sealed class StudentsController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<PagedResult<StudentResponse>>> GetAll(
-        [AsParameters] StudentListQuery request,
+        [FromQuery] StudentListQuery request,
         CancellationToken cancellationToken)
     {
         var page = request.Page <= 0 ? 1 : request.Page;
@@ -424,3 +424,4 @@ public async Task<IActionResult> GetCreditHistory(
 }
 
 }
+
