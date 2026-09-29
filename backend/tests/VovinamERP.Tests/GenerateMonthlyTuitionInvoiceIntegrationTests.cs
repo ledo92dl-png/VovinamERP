@@ -78,7 +78,8 @@ public class GenerateMonthlyTuitionInvoiceIntegrationTests
                 studentCreditRepository,
                 attendanceRepository.Object,
                 new VovinamERP.Infrastructure.Repositories.StudentRepository(db),
-                db);
+db,
+new VovinamERP.Infrastructure.Persistence.StudentCreditLockTransaction(db));
 
         var command =
             new GenerateMonthlyTuitionInvoiceCommand(
@@ -190,7 +191,8 @@ public class GenerateMonthlyTuitionInvoiceIntegrationTests
                 studentCreditRepository,
                 attendanceRepository.Object,
                 new VovinamERP.Infrastructure.Repositories.StudentRepository(db),
-                db);
+db,
+new VovinamERP.Infrastructure.Persistence.StudentCreditLockTransaction(db));
 
         var command =
             new GenerateMonthlyTuitionInvoiceCommand(
@@ -281,7 +283,8 @@ public class GenerateMonthlyTuitionInvoiceIntegrationTests
                 new StudentCreditRepository(db),
                 attendanceRepository.Object,
                 new VovinamERP.Infrastructure.Repositories.StudentRepository(db),
-                db);
+db,
+new VovinamERP.Infrastructure.Persistence.StudentCreditLockTransaction(db));
 
         var firstCommand =
             new GenerateMonthlyTuitionInvoiceCommand(

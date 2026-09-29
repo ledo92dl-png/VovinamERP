@@ -56,6 +56,9 @@ if (string.IsNullOrWhiteSpace(connectionString))
         services.AddScoped<
     ITuitionAdjustmentTransaction,
     TuitionAdjustmentTransaction>();
+	services.AddScoped<
+    IStudentCreditTransaction,
+    StudentCreditLockTransaction>();
         services.AddScoped<
             VovinamERP.Application.Attendance.Common.IAttendanceRepository,
             VovinamERP.Infrastructure.Repositories.AttendanceRepository>();
