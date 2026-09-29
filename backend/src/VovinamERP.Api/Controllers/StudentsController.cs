@@ -177,6 +177,47 @@ public sealed class StudentsController : ControllerBase
 
         return Ok(ToResponse(student, person));
     }
+    [HttpPut("{id:guid}/status")]
+public async Task<ActionResult<StudentResponse>> ChangeStatus(
+    Guid id,
+    [FromBody] ChangeStudentStatusRequest request,
+    CancellationToken cancellationToken)
+{
+    var student = await _dbContext.Set<Student>()
+        .FirstOrDefaultAsync(
+            x => x.Id == id && x.TenantId == request.TenantId,
+            cancellationToken);
+
+    if (student is null)
+        return NotFound();
+
+    if (request.Status == StudentStatus.Archived)
+    {
+        return BadRequest(
+            "Archived status must use the student archive workflow.");
+    }
+
+    var result = student.ChangeStatus(
+        request.Status,
+        request.Reason,
+        userId: null);
+
+    if (result.IsFailure)
+        return BadRequest(result.Error);
+
+    await _dbContext.SaveChangesAsync(cancellationToken);
+
+    var person = await _dbContext.Set<Person>()
+        .AsNoTracking()
+        .FirstOrDefaultAsync(
+            x => x.Id == student.PersonId,
+            cancellationToken);
+
+    if (person is null)
+        return NotFound();
+
+    return Ok(ToResponse(student, person));
+}
 
     [HttpGet("by-member-number/{memberNumber}")]
     public async Task<ActionResult<StudentResponse>> GetByMemberNumber(

@@ -35,11 +35,12 @@ export function getStudents(
   signal?: AbortSignal,
 ): Promise<PagedResult<Student>> {
   const params = new URLSearchParams({
-    page: '1',
-    pageSize: '100',
-    sortBy: 'fullName',
-    descending: 'false',
-  })
+  page: '1',
+  pageSize: '100',
+  sortBy: 'fullName',
+  descending: 'false',
+  status: '2',
+})
 
   if (keyword.trim()) {
     params.set('keyword', keyword.trim())
@@ -128,6 +129,38 @@ export async function updateStudent(
     const message = await response.text()
     throw new Error(
       message || `Unable to update student (${response.status}).`,
+    )
+  }
+
+  return response.json() as Promise<Student>
+}
+export type ChangeStudentStatusInput = {
+  tenantId: string
+  status: number
+  reason: string | null
+}
+
+export async function changeStudentStatus(
+  studentId: string,
+  input: ChangeStudentStatusInput,
+): Promise<Student> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/students/${encodeURIComponent(studentId)}/status`,
+    {
+      method: 'PUT',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(input),
+    },
+  )
+
+  if (!response.ok) {
+    const message = await response.text()
+
+    throw new Error(
+      message || `Không thể thay đổi trạng thái Môn sinh (${response.status}).`,
     )
   }
 

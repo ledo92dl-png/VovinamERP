@@ -10,8 +10,40 @@ import {
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { getBeltRanks, getStudent } from '../lib/studentsApi'
+import {
+  changeStudentStatus,
+  getBeltRanks,
+  getStudent,
+} from '../lib/studentsApi'
 import type { Student } from '../lib/types'
+
+const STUDENT_STATUS = {
+  Trial: 1,
+  Active: 2,
+  Paused: 3,
+  Reserved: 4,
+  Left: 5,
+  Graduated: 6,
+} as const
+
+function getStatusName(status: number | string) {
+  switch (Number(status)) {
+    case STUDENT_STATUS.Trial:
+      return 'Học thử'
+    case STUDENT_STATUS.Active:
+      return 'Đang theo tập'
+    case STUDENT_STATUS.Paused:
+      return 'Tạm nghỉ'
+    case STUDENT_STATUS.Reserved:
+      return 'Bảo lưu'
+    case STUDENT_STATUS.Left:
+      return 'Đã nghỉ'
+    case STUDENT_STATUS.Graduated:
+      return 'Hoàn thành'
+    default:
+      return 'Không xác định'
+  }
+}
 
 function formatDate(value: string | null) {
   if (!value) return 'Chưa cập nhật'
@@ -25,9 +57,11 @@ function formatDate(value: string | null) {
 
 export default function StudentDetailPage() {
   const { studentId } = useParams()
+
   const [student, setStudent] = useState<Student | null>(null)
   const [beltName, setBeltName] = useState('Chưa xếp đai')
   const [loading, setLoading] = useState(true)
+  const [changingStatus, setChangingStatus] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -75,6 +109,45 @@ export default function StudentDetailPage() {
     return () => controller.abort()
   }, [studentId])
 
+  async function handleStatusChange(status: number) {
+    if (!student || !studentId) return
+
+    let reason: string | null = null
+
+    if (status !== STUDENT_STATUS.Active) {
+      const enteredReason = window.prompt(
+        `Lý do chuyển sang "${getStatusName(status)}":`,
+      )
+
+      if (enteredReason === null) return
+
+      reason = enteredReason.trim() || null
+    }
+
+    try {
+      setChangingStatus(true)
+      setError(null)
+
+      const updatedStudent = await changeStudentStatus(studentId, {
+        tenantId: student.tenantId,
+        status,
+        reason,
+      })
+
+      setStudent(updatedStudent)
+    } catch (err) {
+      console.error(err)
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Không thể thay đổi trạng thái Môn sinh.',
+      )
+    } finally {
+      setChangingStatus(false)
+    }
+  }
+
   return (
     <div className="page">
       <Link className="back-link" to="/students">
@@ -90,7 +163,7 @@ export default function StudentDetailPage() {
         </div>
       )}
 
-      {!loading && error && (
+      {!loading && error && !student && (
         <div className="state-card error-state">
           <AlertCircle size={28} />
           <strong>Không tải được hồ sơ</strong>
@@ -98,7 +171,7 @@ export default function StudentDetailPage() {
         </div>
       )}
 
-      {!loading && !error && student && (
+      {!loading && student && (
         <>
           <section className="profile-card">
             <div className="profile-avatar">
@@ -121,7 +194,19 @@ export default function StudentDetailPage() {
             </Link>
           </section>
 
+          {error && (
+            <div className="form-error">
+              <AlertCircle size={18} />
+              <span>{error}</span>
+            </div>
+          )}
+
           <section className="detail-card">
+            <div className="detail-row">
+              <span>Trạng thái</span>
+              <strong>{getStatusName(student.status)}</strong>
+            </div>
+
             <div className="detail-row">
               <span>Ngày sinh</span>
               <strong>{formatDate(student.dateOfBirth)}</strong>
@@ -145,6 +230,68 @@ export default function StudentDetailPage() {
             <div className="detail-row">
               <span>Địa chỉ</span>
               <strong>{student.address || 'Chưa cập nhật'}</strong>
+            </div>
+          </section>
+
+          <section className="form-section">
+            <div className="form-section-heading">
+              <h2>Trạng thái tập luyện</h2>
+              <p>
+                Thay đổi trạng thái nhưng vẫn giữ nguyên hồ sơ và lịch sử
+                của Môn sinh.
+              </p>
+            </div>
+
+            <div className="form-actions">
+              {Number(student.status) !== STUDENT_STATUS.Active && (
+                <button
+                  className="primary-button"
+                  type="button"
+                  disabled={changingStatus}
+                  onClick={() =>
+                    void handleStatusChange(STUDENT_STATUS.Active)
+                  }
+                >
+                  Quay lại tập
+                </button>
+              )}
+
+              {Number(student.status) === STUDENT_STATUS.Active && (
+                <>
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    disabled={changingStatus}
+                    onClick={() =>
+                      void handleStatusChange(STUDENT_STATUS.Paused)
+                    }
+                  >
+                    Tạm nghỉ
+                  </button>
+
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    disabled={changingStatus}
+                    onClick={() =>
+                      void handleStatusChange(STUDENT_STATUS.Reserved)
+                    }
+                  >
+                    Bảo lưu
+                  </button>
+
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    disabled={changingStatus}
+                    onClick={() =>
+                      void handleStatusChange(STUDENT_STATUS.Left)
+                    }
+                  >
+                    Đã nghỉ
+                  </button>
+                </>
+              )}
             </div>
           </section>
 
