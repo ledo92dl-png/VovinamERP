@@ -1,4 +1,4 @@
-﻿import {
+import {
   AlertCircle,
   ArrowLeft,
   Banknote,
@@ -127,11 +127,6 @@ export default function StudentDetailPage() {
             <div className="detail-row">
               <span>Ngày nhập môn</span>
               <strong>{formatDate(student.enrollmentDate)}</strong>
-            </div>
-
-            <div className="detail-row">
-              <span>Võ danh</span>
-              <strong>{student.martialName || 'Chưa cập nhật'}</strong>
             </div>
 
             <div className="detail-row">

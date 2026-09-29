@@ -71,17 +71,14 @@ export default function StudentsPage() {
     if (!normalized) return students
 
     return students.filter((student) => {
-      const fullName = student.fullName.toLocaleLowerCase('vi')
-      const memberNumber = student.memberNumber.toLocaleLowerCase('vi')
-      const martialName =
-        student.martialName?.toLocaleLowerCase('vi') ?? ''
+  const fullName = student.fullName.toLocaleLowerCase('vi')
+  const memberNumber = student.memberNumber.toLocaleLowerCase('vi')
 
-      return (
-        fullName.includes(normalized) ||
-        memberNumber.includes(normalized) ||
-        martialName.includes(normalized)
-      )
-    })
+  return (
+    fullName.includes(normalized) ||
+    memberNumber.includes(normalized)
+  )
+})
   }, [students, keyword])
 
   const groupedStudents = useMemo(() => {
@@ -134,9 +131,9 @@ export default function StudentsPage() {
           </p>
         </div>
 
-        <button className="primary-button" type="button">
-          + Thêm môn sinh
-        </button>
+        <Link className="primary-button" to="/students/new">
+  + Thêm môn sinh
+</Link>
       </header>
 
       <div className="search-box">
@@ -145,7 +142,7 @@ export default function StudentsPage() {
           type="search"
           value={keyword}
           onChange={(event) => setKeyword(event.target.value)}
-          placeholder="Tìm theo tên, mã hoặc võ danh..."
+          placeholder="Tìm theo tên hoặc mã môn sinh"
           aria-label="Tìm môn sinh"
         />
       </div>
@@ -209,10 +206,7 @@ export default function StudentsPage() {
                         <span>
                           {student.memberNumber}
                           {birthYear ? ` · Sinh năm ${birthYear}` : ''}
-                          {student.martialName
-                            ? ` · Võ danh: ${student.martialName}`
-                            : ''}
-                        </span>
+                          </span>
                       </div>
 
                       <ChevronRight size={20} />
