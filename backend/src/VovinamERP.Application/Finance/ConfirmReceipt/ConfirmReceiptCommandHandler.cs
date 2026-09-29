@@ -13,155 +13,175 @@ public sealed class ConfirmReceiptCommandHandler
     private readonly ITuitionInvoiceRepository _tuitionInvoiceRepository;
     private readonly IStudentCreditRepository _studentCreditRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IReceiptTransaction _receiptTransaction;
 
     public ConfirmReceiptCommandHandler(
-    IReceiptRepository receiptRepository,
-    ITuitionInvoiceRepository tuitionInvoiceRepository,
-    IStudentCreditRepository studentCreditRepository,
-    IUnitOfWork unitOfWork)
-{
-    _receiptRepository = receiptRepository;
-    _tuitionInvoiceRepository = tuitionInvoiceRepository;
-    _studentCreditRepository = studentCreditRepository;
-    _unitOfWork = unitOfWork;
-}
+        IReceiptRepository receiptRepository,
+        ITuitionInvoiceRepository tuitionInvoiceRepository,
+        IStudentCreditRepository studentCreditRepository,
+        IUnitOfWork unitOfWork,
+        IReceiptTransaction receiptTransaction)
+    {
+        _receiptRepository = receiptRepository;
+        _tuitionInvoiceRepository = tuitionInvoiceRepository;
+        _studentCreditRepository = studentCreditRepository;
+        _unitOfWork = unitOfWork;
+        _receiptTransaction = receiptTransaction;
+    }
 
-    public async Task<Result> Handle(
+    public Task<Result> Handle(
         ConfirmReceiptCommand request,
         CancellationToken cancellationToken)
     {
-        var receipt = await _receiptRepository.GetByIdAsync(
+        return _receiptTransaction.ExecuteWithReceiptLockAsync(
+            request.TenantId,
             request.ReceiptId,
+            async ct =>
+            {
+                var receipt =
+                    await _receiptRepository.GetByIdAsync(
+                        request.ReceiptId,
+                        ct);
+
+                if (receipt is null)
+                {
+                    return Result.Failure(
+                        new Error(
+                            "FIN_040",
+                            "Receipt was not found."));
+                }
+
+                if (receipt.TenantId != request.TenantId)
+                {
+                    return Result.Failure(
+                        new Error(
+                            "FIN_041",
+                            "Receipt does not belong to the specified tenant."));
+                }
+
+                // An already confirmed receipt is idempotent.
+                // Do not create its payment or credit a second time.
+                if (receipt.Status == ReceiptStatus.Confirmed)
+                {
+                    return Result.Success();
+                }
+
+                var confirmResult = receipt.Confirm();
+
+                if (confirmResult.IsFailure)
+                {
+                    return confirmResult;
+                }
+
+                foreach (var item in receipt.Items)
+                {
+                    if (item.ItemType != ReceiptItemType.Tuition)
+                    {
+                        continue;
+                    }
+
+                    if (!item.ReferenceId.HasValue ||
+                        item.ReferenceId.Value == Guid.Empty)
+                    {
+                        return Result.Failure(
+                            new Error(
+                                "FIN_043",
+                                "Tuition receipt item must reference a tuition invoice."));
+                    }
+
+                    var tuitionInvoice =
+                        await _tuitionInvoiceRepository.GetByIdAsync(
+                            request.TenantId,
+                            item.ReferenceId.Value,
+                            ct);
+
+                    if (tuitionInvoice is null)
+                    {
+                        return Result.Failure(
+                            new Error(
+                                "FIN_044",
+                                "Referenced tuition invoice was not found."));
+                    }
+
+                    if (!item.StudentId.HasValue ||
+                        item.StudentId.Value != tuitionInvoice.StudentId)
+                    {
+                        return Result.Failure(
+                            new Error(
+                                "FIN_045",
+                                "Receipt item student does not match the tuition invoice student."));
+                    }
+
+                    var paymentMethodResult =
+                        MapPaymentMethod(receipt.PaymentMethod);
+
+                    if (paymentMethodResult.IsFailure)
+                    {
+                        return Result.Failure(
+                            paymentMethodResult.Error);
+                    }
+
+                    var balanceBeforePayment =
+                        tuitionInvoice.BalanceAmount;
+
+                    var appliedToInvoice =
+                        Math.Min(
+                            item.TotalAmount,
+                            balanceBeforePayment);
+
+                    var excessAmount =
+                        item.TotalAmount - appliedToInvoice;
+
+                    if (appliedToInvoice > 0)
+                    {
+                        var paymentResult =
+                            tuitionInvoice.RecordPayment(
+                                item.Id,
+                                receipt.ReceiptNumber,
+                                appliedToInvoice,
+                                paymentMethodResult.Value,
+                                receipt.ReceiptDate,
+                                item.Note);
+
+                        if (paymentResult.IsFailure)
+                        {
+                            return Result.Failure(
+                                paymentResult.Error);
+                        }
+                    }
+
+                    if (excessAmount > 0)
+                    {
+                        var creditResult =
+                            StudentCreditTransaction.Create(
+                                request.TenantId,
+                                tuitionInvoice.StudentId,
+                                StudentCreditTransactionType.Credit,
+                                excessAmount,
+                                receipt.ReceiptDate,
+                                receipt.Id,
+                                item.Id,
+                                tuitionInvoice.Id,
+                                $"Overpayment from receipt {receipt.ReceiptNumber}");
+
+                        if (creditResult.IsFailure ||
+                            creditResult.Value is null)
+                        {
+                            return Result.Failure(
+                                creditResult.Error);
+                        }
+
+                        await _studentCreditRepository.AddAsync(
+                            creditResult.Value,
+                            ct);
+                    }
+                }
+
+                await _unitOfWork.SaveChangesAsync(ct);
+
+                return Result.Success();
+            },
             cancellationToken);
-
-        if (receipt is null)
-        {
-            return Result.Failure(
-                new Error(
-                    "FIN_040",
-                    "Receipt was not found."));
-        }
-
-        if (receipt.TenantId != request.TenantId)
-        {
-            return Result.Failure(
-                new Error(
-                    "FIN_041",
-                    "Receipt does not belong to the specified tenant."));
-        }
-
-        // Phiếu đã xác nhận thì không xử lý lại.
-        // Điều này ngăn cùng ReceiptItem tạo TuitionPayment lần thứ hai.
-        if (receipt.Status == ReceiptStatus.Confirmed)
-        {
-            return Result.Success();
-        }
-
-        var confirmResult = receipt.Confirm();
-
-        if (confirmResult.IsFailure)
-        {
-            return confirmResult;
-        }
-
-        foreach (var item in receipt.Items)
-        {
-            if (item.ItemType != ReceiptItemType.Tuition)
-            {
-                continue;
-            }
-
-            if (!item.ReferenceId.HasValue ||
-                item.ReferenceId.Value == Guid.Empty)
-            {
-                return Result.Failure(
-                    new Error(
-                        "FIN_043",
-                        "Tuition receipt item must reference a tuition invoice."));
-            }
-
-            var tuitionInvoice =
-                await _tuitionInvoiceRepository.GetByIdAsync(
-                    request.TenantId,
-                    item.ReferenceId.Value,
-                    cancellationToken);
-
-            if (tuitionInvoice is null)
-            {
-                return Result.Failure(
-                    new Error(
-                        "FIN_044",
-                        "Referenced tuition invoice was not found."));
-            }
-
-            if (!item.StudentId.HasValue ||
-                item.StudentId.Value != tuitionInvoice.StudentId)
-            {
-                return Result.Failure(
-                    new Error(
-                        "FIN_045",
-                        "Receipt item student does not match the tuition invoice student."));
-            }
-
-            var paymentMethodResult =
-                MapPaymentMethod(receipt.PaymentMethod);
-
-            if (paymentMethodResult.IsFailure)
-            {
-                return Result.Failure(
-                    paymentMethodResult.Error);
-            }
-
-            var balanceBeforePayment = tuitionInvoice.BalanceAmount;
-
-var appliedToInvoice = Math.Min(
-    item.TotalAmount,
-    balanceBeforePayment);
-
-var excessAmount =
-    item.TotalAmount - appliedToInvoice;
-
-if (appliedToInvoice > 0)
-{
-    var paymentResult = tuitionInvoice.RecordPayment(
-        item.Id,
-        receipt.ReceiptNumber,
-        appliedToInvoice,
-        paymentMethodResult.Value,
-        receipt.ReceiptDate,
-        item.Note);
-
-    if (paymentResult.IsFailure)
-        return Result.Failure(paymentResult.Error);
-}
-
-    if (excessAmount > 0)
-{
-    var creditResult = StudentCreditTransaction.Create(
-        request.TenantId,
-        tuitionInvoice.StudentId,
-        StudentCreditTransactionType.Credit,
-        excessAmount,
-        receipt.ReceiptDate,
-        receipt.Id,
-        item.Id,
-        tuitionInvoice.Id,
-        $"Tiền đóng dư từ phiếu thu {receipt.ReceiptNumber}");
-
-    if (creditResult.IsFailure || creditResult.Value is null)
-        return Result.Failure(creditResult.Error);
-
-    await _studentCreditRepository.AddAsync(
-        creditResult.Value,
-        cancellationToken);
-}
-
-        }
-
-        await _unitOfWork.SaveChangesAsync(
-            cancellationToken);
-
-        return Result.Success();
     }
 
     private static Result<TuitionPaymentMethod> MapPaymentMethod(

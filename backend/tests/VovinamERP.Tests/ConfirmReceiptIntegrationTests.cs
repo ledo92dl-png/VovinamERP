@@ -93,7 +93,8 @@ public class ConfirmReceiptIntegrationTests
                 new ReceiptRepository(db),
                 new TuitionInvoiceRepository(db),
                 new StudentCreditRepository(db),
-                db);
+                        db,
+        new ReceiptLockTransaction(db));
 
         // Confirm the 500,000 receipt.
         var result =
@@ -273,7 +274,8 @@ public async Task Overpayment_ShouldAutomaticallyApplyToNextMonthTuition()
             new ReceiptRepository(db),
             new TuitionInvoiceRepository(db),
             new StudentCreditRepository(db),
-            db);
+                    db,
+        new ReceiptLockTransaction(db));
 
     var confirmResult =
         await confirmHandler.Handle(
@@ -477,7 +479,8 @@ public async Task ConfirmReceiptTwice_ShouldNotDuplicatePaymentOrStudentCredit()
             new ReceiptRepository(db),
             new TuitionInvoiceRepository(db),
             new StudentCreditRepository(db),
-            db);
+                    db,
+        new ReceiptLockTransaction(db));
 
     // First confirmation.
     var firstResult =

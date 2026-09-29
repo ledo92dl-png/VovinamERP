@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using VovinamERP.Application.Common.Interfaces;
@@ -59,6 +59,11 @@ if (string.IsNullOrWhiteSpace(connectionString))
 	services.AddScoped<
     IStudentCreditTransaction,
     StudentCreditLockTransaction>();
+
+    services.AddScoped<
+    IReceiptTransaction,
+    ReceiptLockTransaction>();
+
         services.AddScoped<
             VovinamERP.Application.Attendance.Common.IAttendanceRepository,
             VovinamERP.Infrastructure.Repositories.AttendanceRepository>();
