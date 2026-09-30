@@ -15,7 +15,6 @@ public sealed class StudentConfiguration : IEntityTypeConfiguration<Student>
     .HasMaxLength(64)
     .IsRequired();
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
-        builder.Property(x => x.MartialName).HasMaxLength(128);
         builder.Property(x => x.IntroducedBy).HasMaxLength(256);
         builder.Property(x => x.MartialProfileNote).HasMaxLength(2048);
         builder.HasIndex(x => new { x.TenantId, x.MemberNumber }).IsUnique();

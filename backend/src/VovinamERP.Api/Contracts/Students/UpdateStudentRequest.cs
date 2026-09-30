@@ -12,6 +12,5 @@ public sealed record UpdateStudentRequest(
     string? Address,
     string? AvatarUrl,
     Guid? CurrentBeltRankId,
-    string? MartialName,
     string? IntroducedBy,
     string? MartialProfileNote);

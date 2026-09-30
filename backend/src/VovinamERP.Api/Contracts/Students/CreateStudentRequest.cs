@@ -14,6 +14,5 @@ public sealed record CreateStudentRequest(
     string? AvatarUrl,
     Guid? CurrentBeltRankId,
     DateOnly EnrollmentDate,
-    string? MartialName,
     string? IntroducedBy,
     string? MartialProfileNote);

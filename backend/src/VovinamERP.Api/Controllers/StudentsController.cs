@@ -77,7 +77,6 @@ public sealed class StudentsController : ControllerBase
             request.CurrentBeltRankId,
             memberNumber,
             request.EnrollmentDate,
-            request.MartialName,
             request.IntroducedBy,
             request.MartialProfileNote);
 
@@ -128,10 +127,9 @@ public sealed class StudentsController : ControllerBase
         {
             var keyword = request.Keyword.Trim().ToLower();
 
-            query = query.Where(x =>
-                x.person.FullName.ToLower().Contains(keyword) ||
-                x.student.MemberNumber.ToLower().Contains(keyword) ||
-                (x.student.MartialName != null && x.student.MartialName.ToLower().Contains(keyword)));
+           query = query.Where(x =>
+    x.person.FullName.ToLower().Contains(keyword) ||
+    x.student.MemberNumber.ToLower().Contains(keyword));
         }
 
         query = (request.SortBy?.Trim().ToLower(), request.Descending) switch
@@ -278,7 +276,6 @@ public async Task<ActionResult<StudentResponse>> ChangeStatus(
             return BadRequest(personResult.Error);
 
         var martialProfileResult = student.UpdateMartialProfile(
-            request.MartialName,
             request.IntroducedBy,
             request.MartialProfileNote,
             null);
@@ -335,7 +332,6 @@ public async Task<ActionResult<StudentResponse>> ChangeStatus(
             student.CurrentBeltRankId,
             student.EnrollmentDate,
             student.Status,
-            student.MartialName,
             student.IntroducedBy,
             student.MartialProfileNote);
     }

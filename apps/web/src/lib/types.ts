@@ -13,7 +13,6 @@
   currentBeltRankId: string | null
   enrollmentDate: string
   status: number | string
-  martialName: string | null
   introducedBy: string | null
   martialProfileNote: string | null
 }

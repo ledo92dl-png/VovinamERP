@@ -14,6 +14,5 @@ public sealed record RegisterStudentCommand(
     string? Address,
     string? AvatarUrl,
     DateOnly EnrollmentDate,
-    string? MartialName,
     string? IntroducedBy,
     string? MartialProfileNote);

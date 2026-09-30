@@ -25,7 +25,6 @@ export type CreateStudentInput = {
   avatarUrl: string | null
   currentBeltRankId: string | null
   enrollmentDate: string
-  martialName: string | null
   introducedBy: string | null
   martialProfileNote: string | null
 }
@@ -141,7 +140,6 @@ export type UpdateStudentInput = {
   address: string | null
   avatarUrl: string | null
   currentBeltRankId: string | null
-  martialName: string | null
   introducedBy: string | null
   martialProfileNote: string | null
 }

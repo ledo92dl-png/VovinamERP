@@ -37,7 +37,6 @@ public sealed class RegisterStudentService
             command.CurrentBeltRankId,
             memberNumber,
             command.EnrollmentDate,
-            command.MartialName,
             command.IntroducedBy,
             command.MartialProfileNote);
 

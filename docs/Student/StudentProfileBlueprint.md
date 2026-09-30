@@ -39,7 +39,6 @@ Hồ sơ này dùng cho:
 - TrainingClassId
 - DirectInstructorId
 - CurrentBeltRankId
-- MartialName
 - IntroducedBy
 - MartialProfileNote
 

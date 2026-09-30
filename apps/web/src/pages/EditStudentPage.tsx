@@ -129,7 +129,6 @@ export default function EditStudentPage() {
         address: address.trim() || null,
         avatarUrl: null,
         currentBeltRankId: currentBeltRankId || null,
-        martialName: null,
         introducedBy: introducedBy.trim() || null,
         martialProfileNote: martialProfileNote.trim() || null,
       })

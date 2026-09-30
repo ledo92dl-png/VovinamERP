@@ -14,7 +14,6 @@ public sealed class Student : AggregateRoot
     public DateOnly EnrollmentDate { get; private set; }
     public StudentStatus Status { get; private set; }
     public string QrToken { get; private set; } = default!;
-    public string? MartialName { get; private set; }
     public string? IntroducedBy { get; private set; }
     public string? MartialProfileNote { get; private set; }
 
@@ -29,7 +28,6 @@ public sealed class Student : AggregateRoot
         Guid? currentBeltRankId,
         string memberNumber,
         DateOnly enrollmentDate,
-        string? martialName,
         string? introducedBy,
         string? martialProfileNote)
     {
@@ -41,7 +39,6 @@ public sealed class Student : AggregateRoot
         EnrollmentDate = enrollmentDate;
         Status = StudentStatus.Active;
         QrToken = GenerateQrToken();
-        MartialName = martialName?.Trim();
         IntroducedBy = introducedBy?.Trim();
         MartialProfileNote = martialProfileNote?.Trim();
 
@@ -61,7 +58,6 @@ public sealed class Student : AggregateRoot
         Guid? currentBeltRankId,
         string memberNumber,
         DateOnly enrollmentDate,
-        string? martialName,
         string? introducedBy,
         string? martialProfileNote)
     {
@@ -87,7 +83,6 @@ public sealed class Student : AggregateRoot
             currentBeltRankId,
             memberNumber,
             enrollmentDate,
-            martialName,
             introducedBy,
             martialProfileNote);
 
@@ -95,15 +90,13 @@ public sealed class Student : AggregateRoot
     }
 
     public Result UpdateMartialProfile(
-        string? martialName,
-        string? introducedBy,
-        string? martialProfileNote,
-        Guid? userId)
+    string? introducedBy,
+    string? martialProfileNote,
+    Guid? userId)
     {
         if (IsArchived)
             return Result.Failure(StudentErrors.AlreadyArchived);
 
-        MartialName = martialName?.Trim();
         IntroducedBy = introducedBy?.Trim();
         MartialProfileNote = martialProfileNote?.Trim();
 

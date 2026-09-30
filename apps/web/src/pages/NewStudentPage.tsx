@@ -127,7 +127,6 @@ export default function NewStudentPage() {
         avatarUrl: null,
         currentBeltRankId: currentBeltRankId || null,
         enrollmentDate,
-        martialName: null,
         introducedBy: emptyToNull(introducedBy),
         martialProfileNote: emptyToNull(martialProfileNote),
       })

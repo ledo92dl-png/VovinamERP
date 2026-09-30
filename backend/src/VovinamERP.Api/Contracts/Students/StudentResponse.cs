@@ -18,6 +18,5 @@ public sealed record StudentResponse(
     Guid? CurrentBeltRankId,
     DateOnly EnrollmentDate,
     StudentStatus Status,
-    string? MartialName,
     string? IntroducedBy,
     string? MartialProfileNote);
