@@ -198,3 +198,75 @@ export async function changeStudentStatus(
 
   return response.json() as Promise<Student>
 }
+export type StudentBeltResult = 1 | 2
+
+export type StudentBeltHistoryItem = {
+  id: string
+  beltRankId: string
+  beltCode: string
+  beltName: string
+  level: number
+  examDate: string
+  result: StudentBeltResult
+  awardedDate: string | null
+  note: string | null
+}
+
+export type StudentBeltHistory = {
+  studentId: string
+  items: StudentBeltHistoryItem[]
+}
+
+export type RecordStudentBeltResultInput = {
+  tenantId: string
+  beltRankId: string
+  examDate: string
+  result: StudentBeltResult
+  awardedDate: string | null
+  note: string | null
+  userId: string | null
+}
+
+export function getStudentBeltHistory(
+  studentId: string,
+  tenantId: string,
+  signal?: AbortSignal,
+): Promise<StudentBeltHistory> {
+  const params = new URLSearchParams({
+    tenantId,
+  })
+
+  return apiGet<StudentBeltHistory>(
+    `/api/students/${encodeURIComponent(studentId)}/belt-results?${params.toString()}`,
+    signal,
+  )
+}
+
+export async function recordStudentBeltResult(
+  studentId: string,
+  input: RecordStudentBeltResultInput,
+): Promise<{ studentBeltHistoryId: string }> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/students/${encodeURIComponent(studentId)}/belt-results`,
+    {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(input),
+    },
+  )
+
+  if (!response.ok) {
+    const message = await response.text()
+
+    throw new Error(
+      message || `Không thể ghi kết quả thi đai (${response.status}).`,
+    )
+  }
+
+  return response.json() as Promise<{
+    studentBeltHistoryId: string
+  }>
+}

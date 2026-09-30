@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --primary: #1456d9;
   --primary-dark: #0e3fa7;
   --primary-soft: #eaf1ff;
@@ -778,4 +778,169 @@
   border-color: #172033;
   color: #fff;
   font-weight: 700;
+}
+.belt-history-section {
+  margin-top: 20px;
+}
+
+.belt-history-list {
+  display: grid;
+  gap: 12px;
+}
+
+.belt-history-item {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.belt-history-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.belt-history-main strong,
+.belt-history-label {
+  display: block;
+}
+
+.belt-history-label,
+.belt-history-details span,
+.belt-history-note span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.belt-history-main strong {
+  margin-top: 4px;
+  font-size: 16px;
+}
+
+.belt-result {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.belt-result-passed {
+  background: #ecfdf3;
+  color: #027a48;
+}
+
+.belt-result-failed {
+  background: #fef3f2;
+  color: #b42318;
+}
+
+.belt-history-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.belt-history-details span,
+.belt-history-details strong {
+  display: block;
+}
+
+.belt-history-details strong {
+  margin-top: 4px;
+  font-size: 14px;
+}
+
+.belt-history-note {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.belt-history-note p {
+  margin: 5px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.belt-history-empty {
+  display: grid;
+  gap: 5px;
+  padding: 18px;
+  border: 1px dashed var(--border);
+  border-radius: 14px;
+  text-align: center;
+}
+
+.belt-history-empty span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+@media (max-width: 620px) {
+  .belt-history-main {
+    align-items: flex-start;
+  }
+
+  .belt-history-details {
+    grid-template-columns: 1fr;
+  }
+}
+.belt-history-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.belt-history-heading .form-section-heading {
+  margin-bottom: 0;
+}
+
+.belt-history-heading .secondary-button {
+  flex: 0 0 auto;
+}
+
+.belt-result-form {
+  margin-bottom: 18px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.belt-result-form .form-grid {
+  margin-top: 0;
+}
+
+.belt-result-form textarea {
+  resize: vertical;
+  min-height: 88px;
+}
+
+.form-field-wide {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 620px) {
+  .belt-history-heading {
+    flex-direction: column;
+  }
+
+  .belt-history-heading .secondary-button {
+    width: 100%;
+  }
+
+  .belt-result-form {
+    padding: 14px;
+  }
+
+  .form-field-wide {
+    grid-column: auto;
+  }
 }

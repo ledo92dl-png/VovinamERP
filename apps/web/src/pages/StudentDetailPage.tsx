@@ -14,8 +14,11 @@ import {
   changeStudentStatus,
   getBeltRanks,
   getStudent,
+  getStudentBeltHistory,
+  recordStudentBeltResult,
 } from '../lib/studentsApi'
-import type { Student } from '../lib/types'
+import type { StudentBeltHistoryItem } from '../lib/studentsApi'
+import type { BeltRank, Student } from '../lib/types'
 
 const STUDENT_STATUS = {
   Trial: 1,
@@ -53,6 +56,16 @@ export default function StudentDetailPage() {
   const { studentId } = useParams()
 
   const [student, setStudent] = useState<Student | null>(null)
+  const [beltHistory, setBeltHistory] = useState<StudentBeltHistoryItem[]>([])
+  const [beltRanks, setBeltRanks] = useState<BeltRank[]>([])
+  const [showBeltResultForm, setShowBeltResultForm] = useState(false)
+  const [beltResultRankId, setBeltResultRankId] = useState('')
+  const [beltResultExamDate, setBeltResultExamDate] = useState('')
+  const [beltResult, setBeltResult] = useState<1 | 2>(1)
+  const [beltResultAwardedDate, setBeltResultAwardedDate] = useState('')
+  const [beltResultNote, setBeltResultNote] = useState('')
+  const [savingBeltResult, setSavingBeltResult] = useState(false)
+  const [beltResultError, setBeltResultError] = useState<string | null>(null)
   const [beltName, setBeltName] = useState('Chưa xếp đai')
   const [loading, setLoading] = useState(true)
   const [changingStatus, setChangingStatus] = useState(false)
@@ -72,14 +85,22 @@ export default function StudentDetailPage() {
         setLoading(true)
         setError(null)
 
-        const [studentResult, beltRanks] = await Promise.all([
+        const [studentResult, beltRankResult] = await Promise.all([
           getStudent(studentId!, controller.signal),
           getBeltRanks(controller.signal),
         ])
 
         setStudent(studentResult)
+        setBeltRanks(beltRankResult)
 
-        const belt = beltRanks.find(
+        const beltHistoryResult = await getStudentBeltHistory(
+          studentId!,
+          studentResult.tenantId,
+          controller.signal,
+        )
+
+        setBeltHistory(beltHistoryResult.items)
+        const belt = beltRankResult.find(
           (item) => item.id === studentResult.currentBeltRankId,
         )
 
@@ -103,6 +124,83 @@ export default function StudentDetailPage() {
     return () => controller.abort()
   }, [studentId])
 
+  async function handleRecordBeltResult() {
+    if (!student || !studentId) return
+
+    if (!beltResultRankId) {
+      setBeltResultError('Vui lòng chọn cấp đai dự thi.')
+      return
+    }
+
+    if (!beltResultExamDate) {
+      setBeltResultError('Vui lòng chọn ngày thi.')
+      return
+    }
+
+    if (beltResult === 1 && !beltResultAwardedDate) {
+      setBeltResultError(
+        'Kết quả Đạt cần có ngày công nhận cấp đai.',
+      )
+      return
+    }
+
+    if (
+      beltResult === 1 &&
+      beltResultAwardedDate < beltResultExamDate
+    ) {
+      setBeltResultError(
+        'Ngày công nhận không được trước ngày thi.',
+      )
+      return
+    }
+
+    try {
+      setSavingBeltResult(true)
+      setBeltResultError(null)
+
+      await recordStudentBeltResult(studentId, {
+        tenantId: student.tenantId,
+        beltRankId: beltResultRankId,
+        examDate: beltResultExamDate,
+        result: beltResult,
+        awardedDate:
+          beltResult === 1 ? beltResultAwardedDate : null,
+        note: beltResultNote.trim() || null,
+        userId: null,
+      })
+
+      const [updatedStudent, updatedHistory] = await Promise.all([
+        getStudent(studentId),
+        getStudentBeltHistory(studentId, student.tenantId),
+      ])
+
+      setStudent(updatedStudent)
+      setBeltHistory(updatedHistory.items)
+
+      const currentBelt = beltRanks.find(
+        (item) => item.id === updatedStudent.currentBeltRankId,
+      )
+
+      setBeltName(currentBelt?.beltName ?? 'Chưa xếp đai')
+
+      setShowBeltResultForm(false)
+      setBeltResultRankId('')
+      setBeltResultExamDate('')
+      setBeltResult(1)
+      setBeltResultAwardedDate('')
+      setBeltResultNote('')
+    } catch (err) {
+      console.error(err)
+
+      setBeltResultError(
+        err instanceof Error
+          ? err.message
+          : 'Không thể ghi kết quả thi đai.',
+      )
+    } finally {
+      setSavingBeltResult(false)
+    }
+  }
   async function handleStatusChange(status: number) {
     if (!student || !studentId) return
 
@@ -227,6 +325,200 @@ export default function StudentDetailPage() {
             </div>
           </section>
 
+          <section className="form-section belt-history-section">
+            <div className="belt-history-heading">
+              <div className="form-section-heading">
+                <h2>Lịch sử đai</h2>
+                <p>
+                  Theo dõi các lần thi đai, kết quả đạt hoặc trượt và quá trình
+                  thay đổi cấp đai của Môn sinh.
+                </p>
+              </div>
+
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => {
+                  setShowBeltResultForm((current) => !current)
+                  setBeltResultError(null)
+                }}
+              >
+                {showBeltResultForm
+                  ? 'Đóng'
+                  : '+ Ghi kết quả thi đai'}
+              </button>
+            </div>
+
+            {showBeltResultForm && (
+              <div className="belt-result-form">
+                {beltResultError && (
+                  <div className="form-error">
+                    <AlertCircle size={18} />
+                    <span>{beltResultError}</span>
+                  </div>
+                )}
+
+                <div className="form-grid">
+                  <label className="form-field">
+                    <span>Cấp đai dự thi</span>
+                    <select
+                      value={beltResultRankId}
+                      onChange={(event) =>
+                        setBeltResultRankId(event.target.value)
+                      }
+                    >
+                      <option value="">Chọn cấp đai</option>
+
+                      {beltRanks
+                        .filter((belt) => belt.isActive)
+                        .sort((a, b) => a.level - b.level)
+                        .map((belt) => (
+                          <option key={belt.id} value={belt.id}>
+                            {belt.beltName}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+
+                  <label className="form-field">
+                    <span>Ngày thi</span>
+                    <input
+                      type="date"
+                      value={beltResultExamDate}
+                      onChange={(event) =>
+                        setBeltResultExamDate(event.target.value)
+                      }
+                    />
+                  </label>
+
+                  <label className="form-field">
+                    <span>Kết quả</span>
+                    <select
+                      value={beltResult}
+                      onChange={(event) => {
+                        const result = Number(event.target.value) as 1 | 2
+
+                        setBeltResult(result)
+
+                        if (result === 2) {
+                          setBeltResultAwardedDate('')
+                        }
+                      }}
+                    >
+                      <option value={1}>Đạt</option>
+                      <option value={2}>Trượt</option>
+                    </select>
+                  </label>
+
+                  {beltResult === 1 && (
+                    <label className="form-field">
+                      <span>Ngày công nhận</span>
+                      <input
+                        type="date"
+                        min={beltResultExamDate || undefined}
+                        value={beltResultAwardedDate}
+                        onChange={(event) =>
+                          setBeltResultAwardedDate(event.target.value)
+                        }
+                      />
+                    </label>
+                  )}
+
+                  <label className="form-field form-field-wide">
+                    <span>Ghi chú</span>
+                    <textarea
+                      rows={3}
+                      value={beltResultNote}
+                      placeholder="Ghi chú thêm nếu cần"
+                      onChange={(event) =>
+                        setBeltResultNote(event.target.value)
+                      }
+                    />
+                  </label>
+                </div>
+
+                <div className="form-actions">
+                  <button
+                    className="primary-button"
+                    type="button"
+                    disabled={savingBeltResult}
+                    onClick={() => void handleRecordBeltResult()}
+                  >
+                    {savingBeltResult
+                      ? 'Đang lưu...'
+                      : 'Lưu kết quả'}
+                  </button>
+
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    disabled={savingBeltResult}
+                    onClick={() => {
+                      setShowBeltResultForm(false)
+                      setBeltResultError(null)
+                    }}
+                  >
+                    Hủy
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {beltHistory.length === 0 ? (
+              <div className="belt-history-empty">
+                <strong>Chưa có lịch sử đai</strong>
+                <span>
+                  Các lần thi đai của Môn sinh sẽ được hiển thị tại đây.
+                </span>
+              </div>
+            ) : (
+              <div className="belt-history-list">
+                {beltHistory.map((item) => (
+                  <article className="belt-history-item" key={item.id}>
+                    <div className="belt-history-main">
+                      <div>
+                        <span className="belt-history-label">Cấp đai</span>
+                        <strong>{item.beltName}</strong>
+                      </div>
+
+                      <span
+                        className={`belt-result ${
+                          Number(item.result) === 1
+                            ? 'belt-result-passed'
+                            : 'belt-result-failed'
+                        }`}
+                      >
+                        {Number(item.result) === 1 ? 'Đạt' : 'Trượt'}
+                      </span>
+                    </div>
+
+                    <div className="belt-history-details">
+                      <div>
+                        <span>Ngày thi</span>
+                        <strong>{formatDate(item.examDate)}</strong>
+                      </div>
+
+                      <div>
+                        <span>Ngày công nhận</span>
+                        <strong>
+                          {item.awardedDate
+                            ? formatDate(item.awardedDate)
+                            : 'Không có'}
+                        </strong>
+                      </div>
+                    </div>
+
+                    {item.note && (
+                      <div className="belt-history-note">
+                        <span>Ghi chú</span>
+                        <p>{item.note}</p>
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
           <section className="form-section">
             <div className="form-section-heading">
               <h2>Trạng thái tập luyện</h2>
