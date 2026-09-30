@@ -15,6 +15,7 @@ using VovinamERP.Api.Services;
 using VovinamERP.Application.Finance.GetStudentTuitionHistory;
 using VovinamERP.Application.Finance.GetStudentCreditHistory;
 
+using VovinamERP.Application.Students.TransitionJuniorYellowBelt;
 namespace VovinamERP.Api.Controllers;
 
 [ApiController]
@@ -34,6 +35,34 @@ public sealed class StudentsController : ControllerBase
     _sender = sender;
     _qrCodeImageService = qrCodeImageService;
 }
+    [HttpPost("{studentId:guid}/junior-yellow-belt-transition")]
+    public async Task<IActionResult> TransitionJuniorYellowBelt(
+        Guid studentId,
+        [FromBody] TransitionJuniorYellowBeltRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new TransitionJuniorYellowBeltCommand(
+            request.TenantId,
+            studentId,
+            request.TransitionDate,
+            request.Note,
+            request.UserId);
+
+        var result = await _sender.Send(
+            command,
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return BadRequest(new
+            {
+                Code = result.Error.Code,
+                Message = result.Error.Message
+            });
+        }
+
+        return Ok();
+    }
     [HttpPost("{studentId:guid}/belt-results")]
     public async Task<IActionResult> RecordBeltResult(
         Guid studentId,
