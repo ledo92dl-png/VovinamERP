@@ -1,4 +1,6 @@
-﻿using VovinamERP.Application.Students.RegenerateStudentQr;
+using VovinamERP.Application.Students.RecordStudentBeltResult;
+using VovinamERP.Application.Students.GetStudentBeltHistory;
+using VovinamERP.Application.Students.RegenerateStudentQr;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using VovinamERP.Application.Students.GetStudentQr;
@@ -32,6 +34,65 @@ public sealed class StudentsController : ControllerBase
     _sender = sender;
     _qrCodeImageService = qrCodeImageService;
 }
+    [HttpPost("{studentId:guid}/belt-results")]
+    public async Task<IActionResult> RecordBeltResult(
+        Guid studentId,
+        [FromBody] RecordStudentBeltResultRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new RecordStudentBeltResultCommand(
+            request.TenantId,
+            studentId,
+            request.BeltRankId,
+            request.ExamDate,
+            request.Result,
+            request.AwardedDate,
+            request.Note,
+            request.UserId);
+
+        var result = await _sender.Send(
+            command,
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return BadRequest(new
+            {
+                Code = result.Error.Code,
+                Message = result.Error.Message
+            });
+        }
+
+        return Ok(new
+        {
+            StudentBeltHistoryId = result.Value
+        });
+    }
+       [HttpGet("{studentId:guid}/belt-results")]
+    public async Task<IActionResult> GetBeltResults(
+        Guid studentId,
+        [FromQuery] Guid tenantId,
+        CancellationToken cancellationToken)
+    {
+        var query = new GetStudentBeltHistoryQuery(
+            tenantId,
+            studentId);
+
+        var result = await _sender.Send(
+            query,
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return BadRequest(new
+            {
+                Code = result.Error.Code,
+                Message = result.Error.Message
+            });
+        }
+
+        return Ok(result.Value);
+    }
     [HttpGet("{studentId:guid}/qr")]
     public async Task<IActionResult> GetStudentQr(
     Guid studentId,
@@ -283,18 +344,6 @@ public async Task<ActionResult<StudentResponse>> ChangeStatus(
         if (martialProfileResult.IsFailure)
             return BadRequest(martialProfileResult.Error);
 
-        if (request.CurrentBeltRankId.HasValue && request.CurrentBeltRankId.Value != student.CurrentBeltRankId)
-        {
-            var beltResult = student.ChangeCurrentBelt(
-                request.CurrentBeltRankId.Value,
-                DateOnly.FromDateTime(DateTime.UtcNow),
-                "Updated from student profile.",
-                null);
-
-            if (beltResult.IsFailure)
-                return BadRequest(beltResult.Error);
-        }
-
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return Ok(ToResponse(student, person));
@@ -461,4 +510,3 @@ public async Task<IActionResult> GetCreditHistory(
 }
 
 }
-

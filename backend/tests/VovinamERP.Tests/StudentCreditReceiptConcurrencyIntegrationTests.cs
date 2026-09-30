@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using VovinamERP.Application.Finance.ApplyStudentCreditToTuitionInvoice;
 using VovinamERP.Application.Finance.ConfirmReceipt;
 using VovinamERP.Domain.Finance;
@@ -33,7 +33,6 @@ public class StudentCreditReceiptConcurrencyIntegrationTests
                     null,
                     $"MS-{Guid.NewGuid():N}",
                     new DateOnly(2027, 1, 1),
-                    null,
                     null,
                     null);
 

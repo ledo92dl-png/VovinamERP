@@ -28,7 +28,6 @@ public class GenerateMonthlyTuitionInvoiceIntegrationTests
             $"MS-{Guid.NewGuid():N}",
             new DateOnly(2026, 1, 1),
             null,
-            null,
             null);
 
         Assert.True(studentResult.IsSuccess);
@@ -141,7 +140,6 @@ new VovinamERP.Infrastructure.Persistence.StudentCreditLockTransaction(db));
             $"MS-{Guid.NewGuid():N}",
             new DateOnly(2026, 1, 1),
             null,
-            null,
             null);
 
         Assert.True(studentResult.IsSuccess);
@@ -253,7 +251,6 @@ new VovinamERP.Infrastructure.Persistence.StudentCreditLockTransaction(db));
             $"MS-{Guid.NewGuid():N}",
             new DateOnly(2026, 1, 1),
             null,
-            null,
             null);
 
         Assert.True(studentResult.IsSuccess);
@@ -347,7 +344,6 @@ public async Task SameInvoiceNumberDifferentMonth_ShouldRejectDuplicateInvoiceNu
         null,
         $"MS-{Guid.NewGuid():N}",
         new DateOnly(2026, 1, 1),
-        null,
         null,
         null);
 

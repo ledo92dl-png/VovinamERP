@@ -32,7 +32,6 @@ public class ApplyStudentCreditToTuitionInvoiceIntegrationTests
                 $"MS-{Guid.NewGuid():N}",
                 new DateOnly(2027, 1, 1),
                 null,
-                null,
                 null);
 
             Assert.True(studentResult.IsSuccess);

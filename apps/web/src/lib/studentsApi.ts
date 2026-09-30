@@ -1,4 +1,4 @@
-﻿import { apiGet } from './api'
+import { apiGet } from './api'
 import type { BeltRank, PagedResult, Student } from './types'
 
 const API_BASE_URL =
@@ -23,8 +23,8 @@ export type CreateStudentInput = {
   email: string | null
   address: string | null
   avatarUrl: string | null
-  currentBeltRankId: string | null
   enrollmentDate: string
+  currentBeltRankId: string | null
   introducedBy: string | null
   martialProfileNote: string | null
 }
@@ -139,7 +139,6 @@ export type UpdateStudentInput = {
   email: string | null
   address: string | null
   avatarUrl: string | null
-  currentBeltRankId: string | null
   introducedBy: string | null
   martialProfileNote: string | null
 }

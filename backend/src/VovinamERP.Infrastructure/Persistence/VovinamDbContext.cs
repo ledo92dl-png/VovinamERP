@@ -31,6 +31,7 @@ public sealed class VovinamDbContext
     public DbSet<Organization> Organizations => Set<Organization>();
     public DbSet<Person> Persons => Set<Person>();
     public DbSet<Student> Students => Set<Student>();
+    public DbSet<StudentBeltHistory> StudentBeltHistories => Set<StudentBeltHistory>();
     public DbSet<Instructor> Instructors => Set<Instructor>();
     public DbSet<Guardian> Guardians => Set<Guardian>();
     public DbSet<StudentGuardian> StudentGuardians => Set<StudentGuardian>();

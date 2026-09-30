@@ -25,7 +25,6 @@ export default function EditStudentPage() {
   const [fullName, setFullName] = useState('')
   const [gender, setGender] = useState(0)
   const [dateOfBirth, setDateOfBirth] = useState('')
-  const [currentBeltRankId, setCurrentBeltRankId] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [email, setEmail] = useState('')
   const [address, setAddress] = useState('')
@@ -71,7 +70,6 @@ export default function EditStudentPage() {
         setFullName(studentResult.fullName)
         setGender(Number(studentResult.gender))
         setDateOfBirth(studentResult.dateOfBirth?.slice(0, 10) ?? '')
-        setCurrentBeltRankId(studentResult.currentBeltRankId ?? '')
         setPhoneNumber(studentResult.phoneNumber ?? '')
         setEmail(studentResult.email ?? '')
         setAddress(studentResult.address ?? '')
@@ -108,13 +106,6 @@ export default function EditStudentPage() {
       return
     }
 
-    if (student.currentBeltRankId && !currentBeltRankId) {
-      setError(
-        'Không thể xóa đai hiện tại tại màn hình này. Hãy chọn một cấp đai.',
-      )
-      return
-    }
-
     try {
       setSaving(true)
       setError(null)
@@ -128,7 +119,6 @@ export default function EditStudentPage() {
         email: email.trim() || null,
         address: address.trim() || null,
         avatarUrl: null,
-        currentBeltRankId: currentBeltRankId || null,
         introducedBy: introducedBy.trim() || null,
         martialProfileNote: martialProfileNote.trim() || null,
       })
@@ -250,22 +240,15 @@ export default function EditStudentPage() {
 
             <label className="form-field">
               <span>Đai hiện tại</span>
-              <select
-                value={currentBeltRankId}
-                onChange={(event) =>
-                  setCurrentBeltRankId(event.target.value)
+              <input
+                type="text"
+                value={
+                  beltRanks.find(
+                    (belt) => belt.id === student.currentBeltRankId,
+                  )?.beltName ?? 'Chưa xếp đai'
                 }
-              >
-                {!student.currentBeltRankId && (
-                  <option value="">Chưa xếp đai</option>
-                )}
-
-                {beltRanks.map((belt) => (
-                  <option key={belt.id} value={belt.id}>
-                    {belt.beltName}
-                  </option>
-                ))}
-              </select>
+                disabled
+              />
             </label>
           </div>
         </section>
