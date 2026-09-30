@@ -21,9 +21,7 @@ const STUDENT_STATUS = {
   Trial: 1,
   Active: 2,
   Paused: 3,
-  Reserved: 4,
   Left: 5,
-  Graduated: 6,
 } as const
 
 function getStatusName(status: number | string) {
@@ -34,12 +32,8 @@ function getStatusName(status: number | string) {
       return 'Đang theo tập'
     case STUDENT_STATUS.Paused:
       return 'Tạm nghỉ'
-    case STUDENT_STATUS.Reserved:
-      return 'Bảo lưu'
     case STUDENT_STATUS.Left:
       return 'Đã nghỉ'
-    case STUDENT_STATUS.Graduated:
-      return 'Hoàn thành'
     default:
       return 'Không xác định'
   }
@@ -267,17 +261,6 @@ export default function StudentDetailPage() {
                     }
                   >
                     Tạm nghỉ
-                  </button>
-
-                  <button
-                    className="secondary-button"
-                    type="button"
-                    disabled={changingStatus}
-                    onClick={() =>
-                      void handleStatusChange(STUDENT_STATUS.Reserved)
-                    }
-                  >
-                    Bảo lưu
                   </button>
 
                   <button

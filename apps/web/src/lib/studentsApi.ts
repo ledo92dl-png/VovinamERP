@@ -30,26 +30,61 @@ export type CreateStudentInput = {
   martialProfileNote: string | null
 }
 
-export function getStudents(
+export type StudentStatusFilter =
+  | 1
+  | 2
+  | 3
+  | 5
+  | 'all'
+
+export async function getStudents(
   keyword = '',
   signal?: AbortSignal,
+  status: StudentStatusFilter = 2,
 ): Promise<PagedResult<Student>> {
-  const params = new URLSearchParams({
-  page: '1',
-  pageSize: '100',
-  sortBy: 'fullName',
-  descending: 'false',
-  status: '2',
-})
+  const pageSize = 100
+  let page = 1
+  let totalCount = 0
+  let totalPages = 1
+  const allStudents: Student[] = []
 
-  if (keyword.trim()) {
-    params.set('keyword', keyword.trim())
+  do {
+    const params = new URLSearchParams({
+      page: String(page),
+      pageSize: String(pageSize),
+      sortBy: 'fullName',
+      descending: 'false',
+    })
+
+    if (status !== 'all') {
+      params.set('status', String(status))
+    }
+
+    if (keyword.trim()) {
+      params.set('keyword', keyword.trim())
+    }
+
+    const result = await apiGet<PagedResult<Student>>(
+      `/api/students?${params.toString()}`,
+      signal,
+    )
+
+    allStudents.push(...result.items)
+
+    totalCount = result.totalCount
+    totalPages = result.totalPages
+    page += 1
+  } while (page <= totalPages)
+
+  return {
+    items: allStudents,
+    page: 1,
+    pageSize: allStudents.length,
+    totalCount,
+    totalPages,
+    hasPreviousPage: false,
+    hasNextPage: false,
   }
-
-  return apiGet<PagedResult<Student>>(
-    `/api/students?${params.toString()}`,
-    signal,
-  )
 }
 
 export function getStudent(

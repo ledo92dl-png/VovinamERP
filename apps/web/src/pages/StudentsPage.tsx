@@ -7,7 +7,11 @@
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getBeltRanks, getStudents } from '../lib/studentsApi'
+import {
+  getBeltRanks,
+  getStudents,
+} from '../lib/studentsApi'
+import type { StudentStatusFilter } from '../lib/studentsApi'
 import type { BeltRank, Student } from '../lib/types'
 
 function getBirthYear(dateOfBirth: string | null) {
@@ -16,11 +20,23 @@ function getBirthYear(dateOfBirth: string | null) {
   const year = Number(dateOfBirth.slice(0, 4))
   return Number.isFinite(year) ? year : null
 }
+const statusFilters: {
+  value: StudentStatusFilter
+  label: string
+}[] = [
+  { value: 2, label: 'Đang theo tập' },
+{ value: 1, label: 'Học thử' },
+{ value: 3, label: 'Tạm nghỉ' },
+{ value: 5, label: 'Đã nghỉ' },
+{ value: 'all', label: 'Tất cả' },
+]
 
 export default function StudentsPage() {
   const [students, setStudents] = useState<Student[]>([])
   const [beltRanks, setBeltRanks] = useState<BeltRank[]>([])
   const [keyword, setKeyword] = useState('')
+  const [statusFilter, setStatusFilter] =
+  useState<StudentStatusFilter>(2)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [totalCount, setTotalCount] = useState(0)
@@ -34,7 +50,7 @@ export default function StudentsPage() {
         setError(null)
 
         const [studentResult, beltResult] = await Promise.all([
-          getStudents('', controller.signal),
+          getStudents('', controller.signal, statusFilter),
           getBeltRanks(controller.signal),
         ])
 
@@ -58,28 +74,32 @@ export default function StudentsPage() {
     void loadData()
 
     return () => controller.abort()
-  }, [])
+  }, [statusFilter])
 
   const beltMap = useMemo(
     () => new Map(beltRanks.map((belt) => [belt.id, belt])),
     [beltRanks],
   )
 
-  const filteredStudents = useMemo(() => {
-    const normalized = keyword.trim().toLocaleLowerCase('vi')
+  const selectedStatusLabel =
+  statusFilters.find((item) => item.value === statusFilter)?.label ??
+  'Môn sinh'
 
-    if (!normalized) return students
+const filteredStudents = useMemo(() => {
+  const normalized = keyword.trim().toLocaleLowerCase('vi')
 
-    return students.filter((student) => {
-  const fullName = student.fullName.toLocaleLowerCase('vi')
-  const memberNumber = student.memberNumber.toLocaleLowerCase('vi')
+  if (!normalized) return students
 
-  return (
-    fullName.includes(normalized) ||
-    memberNumber.includes(normalized)
-  )
-})
-  }, [students, keyword])
+  return students.filter((student) => {
+    const fullName = student.fullName.toLocaleLowerCase('vi')
+    const memberNumber = student.memberNumber.toLocaleLowerCase('vi')
+
+    return (
+      fullName.includes(normalized) ||
+      memberNumber.includes(normalized)
+    )
+  })
+}, [students, keyword])
 
   const groupedStudents = useMemo(() => {
     const groups = new Map<
@@ -123,11 +143,15 @@ export default function StudentsPage() {
       <header className="page-header">
         <div>
           <span className="eyebrow">QUẢN LÝ MÔN SINH</span>
-          <h1>Môn sinh đang theo tập</h1>
+          <h1>
+  {statusFilter === 2
+    ? 'Môn sinh đang theo tập'
+    : `Môn sinh · ${selectedStatusLabel}`}
+</h1>
           <p>
             {loading
               ? 'Đang tải dữ liệu...'
-              : `${totalCount} môn sinh trong hệ thống`}
+              : `${totalCount} Môn sinh`}
           </p>
         </div>
 
@@ -135,7 +159,22 @@ export default function StudentsPage() {
   + Thêm môn sinh
 </Link>
       </header>
-
+      <div className="status-filter">
+  {statusFilters.map((item) => (
+    <button
+      key={String(item.value)}
+      type="button"
+      className={
+        statusFilter === item.value
+          ? 'status-filter-button active'
+          : 'status-filter-button'
+      }
+      onClick={() => setStatusFilter(item.value)}
+    >
+      {item.label}
+    </button>
+  ))}
+</div>        
       <div className="search-box">
         <Search size={20} />
         <input

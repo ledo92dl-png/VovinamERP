@@ -753,3 +753,29 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+.status-filter {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+  scrollbar-width: thin;
+}
+
+.status-filter-button {
+  flex: 0 0 auto;
+  border: 1px solid var(--border-color, #d8dee8);
+  border-radius: 999px;
+  background: #fff;
+  padding: 0.6rem 0.9rem;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.status-filter-button.active {
+  background: #172033;
+  border-color: #172033;
+  color: #fff;
+  font-weight: 700;
+}
