@@ -1,5 +1,6 @@
 using MediatR;
 using VovinamERP.Application.Common.Interfaces;
+using IPersonRepository = VovinamERP.Application.Common.Repositories.IPersonRepository;
 using VovinamERP.Application.Students.Common;
 using VovinamERP.Domain.Belts;
 using VovinamERP.Domain.Students;
@@ -11,17 +12,20 @@ public sealed class RecordStudentBeltResultCommandHandler
     : IRequestHandler<RecordStudentBeltResultCommand, Result<Guid>>
 {
     private readonly IStudentRepository _studentRepository;
+    private readonly IPersonRepository _personRepository;
     private readonly IRepository<BeltRank> _beltRankRepository;
     private readonly IRepository<StudentBeltHistory> _beltHistoryRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public RecordStudentBeltResultCommandHandler(
         IStudentRepository studentRepository,
+        IPersonRepository personRepository,
         IRepository<BeltRank> beltRankRepository,
         IRepository<StudentBeltHistory> beltHistoryRepository,
         IUnitOfWork unitOfWork)
     {
         _studentRepository = studentRepository;
+        _personRepository = personRepository;
         _beltRankRepository = beltRankRepository;
         _beltHistoryRepository = beltHistoryRepository;
         _unitOfWork = unitOfWork;
@@ -44,19 +48,46 @@ public sealed class RecordStudentBeltResultCommandHandler
                     "Student was not found."));
         }
 
-        var beltRankExists = await _beltRankRepository.ExistsAsync(
-            beltRank =>
-                beltRank.Id == request.BeltRankId &&
-                !beltRank.IsArchived &&
-                beltRank.IsActive,
+        var beltRank = await _beltRankRepository.GetByIdAsync(
+            request.BeltRankId,
             cancellationToken);
 
-        if (!beltRankExists)
+        if (beltRank is null ||
+            beltRank.IsArchived ||
+            !beltRank.IsActive)
         {
             return Result<Guid>.Failure(
                 new Error(
                     "STUDENT_BELT_002",
                     "Belt rank was not found or is inactive."));
+        }
+
+        if (request.Result == StudentBeltResult.Passed)
+        {
+            var person = await _personRepository.GetByIdAsync(
+                student.PersonId,
+                cancellationToken);
+
+            if (person is null ||
+                person.IsArchived ||
+                person.TenantId != request.TenantId)
+            {
+                return Result<Guid>.Failure(
+                    new Error(
+                        "STUDENT_BELT_003",
+                        "Student profile information was not found."));
+            }
+
+            var ageValidationResult = StudentBeltAgePolicy.Validate(
+                person.DateOfBirth,
+                beltRank,
+                request.AwardedDate!.Value);
+
+            if (ageValidationResult.IsFailure)
+            {
+                return Result<Guid>.Failure(
+                    ageValidationResult.Error);
+            }
         }
 
         var historyResult = StudentBeltHistory.Create(
@@ -85,7 +116,8 @@ public sealed class RecordStudentBeltResultCommandHandler
 
             if (beltChangeResult.IsFailure)
             {
-                return Result<Guid>.Failure(beltChangeResult.Error);
+                return Result<Guid>.Failure(
+                    beltChangeResult.Error);
             }
         }
 
@@ -93,7 +125,8 @@ public sealed class RecordStudentBeltResultCommandHandler
             history,
             cancellationToken);
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await _unitOfWork.SaveChangesAsync(
+            cancellationToken);
 
         return Result<Guid>.Success(history.Id);
     }
