@@ -6,6 +6,7 @@ using VovinamERP.Application.BeltExams.AddBeltExamScore;
 using VovinamERP.Application.BeltExams.AddBeltExamStudentResult;
 using VovinamERP.Application.BeltExams.AddBeltExamSubject;
 using VovinamERP.Application.BeltExams.GetBeltExamScoreSheet;
+using VovinamERP.Application.BeltExams.GetBeltExams;
 using VovinamERP.Application.BeltExams.CreateBeltExam;
 using VovinamERP.Application.BeltRecognitions.RecognizeBeltExamResult;
 using VovinamERP.Domain.BeltExams;
@@ -28,6 +29,27 @@ public sealed class BeltExamsController : ControllerBase
     {
         _dbContext = dbContext;
         _sender = sender;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetAll(
+        [FromQuery] Guid tenantId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(
+            new GetBeltExamsQuery(tenantId),
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return BadRequest(new
+            {
+                Code = result.Error.Code,
+                Message = result.Error.Message
+            });
+        }
+
+        return Ok(result.Value);
     }
 
     [HttpPost]
