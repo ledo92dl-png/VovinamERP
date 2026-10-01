@@ -5,6 +5,7 @@ using VovinamERP.Api.Contracts.BeltExams;
 using VovinamERP.Application.BeltExams.AddBeltExamScore;
 using VovinamERP.Application.BeltExams.AddBeltExamStudentResult;
 using VovinamERP.Application.BeltExams.AddBeltExamSubject;
+using VovinamERP.Application.BeltExams.GetBeltExamScoreSheet;
 using VovinamERP.Application.BeltExams.CreateBeltExam;
 using VovinamERP.Domain.BeltExams;
 using VovinamERP.Domain.Persons;
@@ -165,51 +166,25 @@ public sealed class BeltExamsController : ControllerBase
         [FromQuery] Guid tenantId,
         CancellationToken cancellationToken)
     {
-        var studentResultExists = await _dbContext
-            .Set<BeltExamStudentResult>()
-            .AsNoTracking()
-            .AnyAsync(
-                x =>
-                    x.Id == studentResultId &&
-                    x.TenantId == tenantId &&
-                    x.BeltExamId == beltExamId &&
-                    !x.IsArchived,
-                cancellationToken);
+        var query = new GetBeltExamScoreSheetQuery(
+            tenantId,
+            beltExamId,
+            studentResultId);
 
-        if (!studentResultExists)
+        var result = await _sender.Send(
+            query,
+            cancellationToken);
+
+        if (result.IsFailure)
         {
-            return NotFound();
+            return NotFound(new
+            {
+                Code = result.Error.Code,
+                Message = result.Error.Message
+            });
         }
 
-        var scores =
-            await (
-                from score in _dbContext
-                    .Set<BeltExamScore>()
-                    .AsNoTracking()
-                join subject in _dbContext
-                    .Set<BeltExamSubject>()
-                    .AsNoTracking()
-                    on score.BeltExamSubjectId equals subject.Id
-                where
-                    score.TenantId == tenantId &&
-                    score.BeltExamStudentResultId == studentResultId &&
-                    !score.IsArchived &&
-                    subject.TenantId == tenantId &&
-                    subject.BeltExamId == beltExamId &&
-                    !subject.IsArchived
-                orderby subject.DisplayOrder
-                select new
-                {
-                    score.Id,
-                    SubjectId = subject.Id,
-                    SubjectName = subject.Name,
-                    subject.DisplayOrder,
-                    subject.MaximumScore,
-                    score.Score
-                })
-            .ToListAsync(cancellationToken);
-
-        return Ok(scores);
+        return Ok(result.Value);
     }
     [HttpPost("{beltExamId:guid}/subjects")]
     public async Task<IActionResult> AddSubject(
