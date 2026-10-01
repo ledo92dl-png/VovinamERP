@@ -189,28 +189,25 @@ public sealed class RecognizeBeltExamResultCommandHandler
             laterRecognitions.Count > 0 ||
             laterLegacyHistories.Count > 0;
 
-        var isLegacyJuniorToYellowTransition = false;
+        BeltRank? currentBeltRank = null;
 
-        if (beltRank.BeltCode ==
-                StudentBeltAgePolicy.JuniorYellowBeltCode &&
-            student.CurrentBeltRankId.HasValue &&
-            student.CurrentBeltRankId.Value != beltRank.Id)
+        if (student.CurrentBeltRankId.HasValue)
         {
-            var currentBeltRank =
+            currentBeltRank =
                 await _beltRankRepository.GetByIdAsync(
                     student.CurrentBeltRankId.Value,
                     cancellationToken);
-
-            isLegacyJuniorToYellowTransition =
-                currentBeltRank is not null &&
-                !currentBeltRank.IsArchived &&
-                currentBeltRank.BeltCode ==
-                    StudentBeltAgePolicy.YellowBeltCode;
         }
+
+        var targetIsHigherThanCurrent =
+            !student.CurrentBeltRankId.HasValue ||
+            (currentBeltRank is not null &&
+             !currentBeltRank.IsArchived &&
+             beltRank.Level > currentBeltRank.Level);
 
         var shouldChangeCurrentBelt =
             !hasLaterBeltMilestone &&
-            !isLegacyJuniorToYellowTransition;
+            targetIsHigherThanCurrent;
 
         if (shouldChangeCurrentBelt)
         {

@@ -485,6 +485,126 @@ public sealed class RecognizeBeltExamResultCommandHandlerTests
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
+    [Fact]
+    public async Task Handle_LowerBeltThanCurrent_ShouldSaveRecognitionWithoutRegressingCurrentBelt()
+    {
+        var setup = CreateValidSetup();
+
+        var higherCurrentBelt = CreateBeltRank(
+            "HOANG-1",
+            "Hoàng đai I",
+            7);
+
+        var beltChangeResult = setup.Student.ChangeCurrentBelt(
+            higherCurrentBelt.Id,
+            new DateOnly(2026, 7, 13),
+            "Existing higher belt",
+            null);
+
+        Assert.True(beltChangeResult.IsSuccess);
+
+        setup.BeltRankRepository
+            .Setup(x => x.GetByIdAsync(
+                higherCurrentBelt.Id,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(higherCurrentBelt);
+
+        BeltRankRecognition? savedRecognition = null;
+
+        setup.RecognitionRepository
+            .Setup(x => x.AddAsync(
+                It.IsAny<BeltRankRecognition>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<BeltRankRecognition, CancellationToken>(
+                (recognition, _) =>
+                    savedRecognition = recognition)
+            .Returns(Task.CompletedTask);
+
+        var result = await setup.Handler.Handle(
+            new RecognizeBeltExamResultCommand(
+                setup.TenantId,
+                setup.StudentResult.Id,
+                new DateOnly(2026, 7, 13),
+                "Historical lower belt recognition",
+                null),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(savedRecognition);
+
+        Assert.Equal(
+            setup.TargetBelt.Id,
+            savedRecognition!.BeltRankId);
+
+        Assert.Equal(
+            higherCurrentBelt.Id,
+            setup.Student.CurrentBeltRankId);
+
+        setup.UnitOfWork.Verify(
+            x => x.SaveChangesAsync(
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_SameLevelAsCurrent_ShouldSaveRecognitionWithoutChangingCurrentBelt()
+    {
+        var setup = CreateValidSetup();
+
+        var sameLevelCurrentBelt = CreateBeltRank(
+            "SAME-LEVEL-CURRENT",
+            "Same level current belt",
+            setup.TargetBelt.Level);
+
+        var beltChangeResult = setup.Student.ChangeCurrentBelt(
+            sameLevelCurrentBelt.Id,
+            new DateOnly(2026, 7, 13),
+            "Existing same-level belt",
+            null);
+
+        Assert.True(beltChangeResult.IsSuccess);
+
+        setup.BeltRankRepository
+            .Setup(x => x.GetByIdAsync(
+                sameLevelCurrentBelt.Id,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(sameLevelCurrentBelt);
+
+        BeltRankRecognition? savedRecognition = null;
+
+        setup.RecognitionRepository
+            .Setup(x => x.AddAsync(
+                It.IsAny<BeltRankRecognition>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<BeltRankRecognition, CancellationToken>(
+                (recognition, _) =>
+                    savedRecognition = recognition)
+            .Returns(Task.CompletedTask);
+
+        var result = await setup.Handler.Handle(
+            new RecognizeBeltExamResultCommand(
+                setup.TenantId,
+                setup.StudentResult.Id,
+                new DateOnly(2026, 7, 13),
+                "Same-level historical recognition",
+                null),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(savedRecognition);
+        Assert.Equal(
+            setup.TargetBelt.Id,
+            savedRecognition!.BeltRankId);
+        Assert.Equal(
+            sameLevelCurrentBelt.Id,
+            setup.Student.CurrentBeltRankId);
+
+        setup.UnitOfWork.Verify(
+            x => x.SaveChangesAsync(
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
     private static RecognitionSetup CreateValidSetup(
         StudentBeltResult examResult =
             StudentBeltResult.Passed,
@@ -570,6 +690,12 @@ public sealed class RecognizeBeltExamResultCommandHandlerTests
                 targetBelt.Id,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(targetBelt);
+
+        beltRankRepository
+            .Setup(x => x.GetByIdAsync(
+                currentBelt.Id,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(currentBelt);
 
         studentRepository
             .Setup(x => x.GetByIdAsync(
