@@ -108,4 +108,20 @@ public sealed class BeltRankDocument : AggregateRoot
                 scanUrl,
                 note));
     }
+
+    public Result UpdateScan(
+        string? scanUrl)
+    {
+        if (scanUrl?.Trim().Length > 2000)
+        {
+            return Result.Failure(
+                BeltRankDocumentErrors.ScanUrlTooLong);
+        }
+
+        ScanUrl = string.IsNullOrWhiteSpace(scanUrl)
+            ? null
+            : scanUrl.Trim();
+
+        return Result.Success();
+    }
 }

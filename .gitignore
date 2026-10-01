@@ -1,4 +1,4 @@
-﻿# Build output
+# Build output
 bin/
 obj/
 
@@ -32,3 +32,6 @@ coverage/
 
 # Generated test database migration script
 backend/vovinam_erp_test_migrations.sql
+
+# Runtime uploaded files
+backend/src/VovinamERP.Api/App_Data/uploads/

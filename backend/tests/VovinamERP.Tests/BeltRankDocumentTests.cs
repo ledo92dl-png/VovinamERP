@@ -203,4 +203,83 @@ public sealed class BeltRankDocumentTests
             BeltRankDocumentErrors.NoteTooLong,
             result.Error);
     }
+
+    [Fact]
+    public void UpdateScan_ValidUrl_ShouldUpdateAndTrim()
+    {
+        var createResult = BeltRankDocument.Create(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            BeltRankDocumentType.RankDiploma,
+            "BD-001",
+            new DateOnly(2026, 10, 1),
+            null,
+            null);
+
+        Assert.True(createResult.IsSuccess);
+
+        var document = createResult.Value!;
+
+        var result = document.UpdateScan(
+            "  /uploads/tenant/belt-rank-documents/scan.pdf  ");
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(
+            "/uploads/tenant/belt-rank-documents/scan.pdf",
+            document.ScanUrl);
+    }
+
+    [Fact]
+    public void UpdateScan_TooLongUrl_ShouldFailAndPreserveExistingValue()
+    {
+        var createResult = BeltRankDocument.Create(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            BeltRankDocumentType.RankDiploma,
+            "BD-001",
+            new DateOnly(2026, 10, 1),
+            "/uploads/original.pdf",
+            null);
+
+        Assert.True(createResult.IsSuccess);
+
+        var document = createResult.Value!;
+
+        var result = document.UpdateScan(
+            new string('A', 2001));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(
+            BeltRankDocumentErrors.ScanUrlTooLong,
+            result.Error);
+        Assert.Equal(
+            "/uploads/original.pdf",
+            document.ScanUrl);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void UpdateScan_EmptyValue_ShouldClearScanUrl(
+        string? scanUrl)
+    {
+        var createResult = BeltRankDocument.Create(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            BeltRankDocumentType.RankDiploma,
+            "BD-001",
+            new DateOnly(2026, 10, 1),
+            "/uploads/original.pdf",
+            null);
+
+        Assert.True(createResult.IsSuccess);
+
+        var document = createResult.Value!;
+
+        var result = document.UpdateScan(scanUrl);
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(document.ScanUrl);
+    }
 }

@@ -14,7 +14,9 @@ builder.Services.AddOpenApi();
 builder.Services.AddSingleton<IQrCodeImageService, QrCodeImageService>();
 
 builder.Services.AddApplication();
-builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddInfrastructure(
+    builder.Configuration,
+    builder.Environment.ContentRootPath);
 builder.Services.AddRepositories();
 
 builder.Services.AddCors(options =>

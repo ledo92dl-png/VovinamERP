@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using VovinamERP.Application.Common.Interfaces;
@@ -6,6 +6,7 @@ using VovinamERP.Application.Finance.Common;
 using VovinamERP.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using VovinamERP.Infrastructure.Identity;
+using VovinamERP.Infrastructure.Storage;
 
 namespace VovinamERP.Infrastructure.DependencyInjection;
 
@@ -13,7 +14,8 @@ public static class InfrastructureServiceCollectionExtensions
 {
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        string contentRootPath)
     {
         var connectionString =
     configuration.GetConnectionString("DefaultConnection");
@@ -67,6 +69,14 @@ if (string.IsNullOrWhiteSpace(connectionString))
         services.AddScoped<
             VovinamERP.Application.Attendance.Common.IAttendanceRepository,
             VovinamERP.Infrastructure.Repositories.AttendanceRepository>();
+        var uploadRootPath = Path.Combine(
+            contentRootPath,
+            "App_Data",
+            "uploads");
+
+        services.AddSingleton<IFileStorage>(
+            new LocalFileStorage(uploadRootPath));
+
         return services;
     }
 }
