@@ -270,3 +270,35 @@ export async function recordStudentBeltResult(
     studentBeltHistoryId: string
   }>
 }
+export type TransitionJuniorYellowBeltInput = {
+  tenantId: string
+  transitionDate: string
+  note: string | null
+  userId: string | null
+}
+
+export async function transitionJuniorYellowBelt(
+  studentId: string,
+  input: TransitionJuniorYellowBeltInput,
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/students/${encodeURIComponent(studentId)}/junior-yellow-belt-transition`,
+    {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(input),
+    },
+  )
+
+  if (!response.ok) {
+    const message = await response.text()
+
+    throw new Error(
+      message ||
+        `Không thể chuyển từ Hoàng đai thiếu nhi sang Hoàng đai (${response.status}).`,
+    )
+  }
+}

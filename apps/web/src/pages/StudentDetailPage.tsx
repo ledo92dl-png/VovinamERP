@@ -16,6 +16,7 @@ import {
   getStudent,
   getStudentBeltHistory,
   recordStudentBeltResult,
+  transitionJuniorYellowBelt,
 } from '../lib/studentsApi'
 import type { StudentBeltHistoryItem } from '../lib/studentsApi'
 import type { BeltRank, Student } from '../lib/types'
@@ -52,6 +53,29 @@ function formatDate(value: string | null) {
   return `${day}/${month}/${year}`
 }
 
+function hasReachedAge(
+  dateOfBirth: string | null,
+  age: number,
+  onDate: Date,
+) {
+  if (!dateOfBirth) return false
+
+  const [year, month, day] = dateOfBirth.slice(0, 10).split('-').map(Number)
+
+  if (!year || !month || !day) return false
+
+  const birthdayThisYear = new Date(
+    onDate.getFullYear(),
+    month - 1,
+    day,
+  )
+
+  return (
+    onDate.getFullYear() - year > age ||
+    (onDate.getFullYear() - year === age &&
+      onDate >= birthdayThisYear)
+  )
+}
 export default function StudentDetailPage() {
   const { studentId } = useParams()
 
@@ -67,9 +91,23 @@ export default function StudentDetailPage() {
   const [savingBeltResult, setSavingBeltResult] = useState(false)
   const [beltResultError, setBeltResultError] = useState<string | null>(null)
   const [beltName, setBeltName] = useState('Chưa xếp đai')
+  const [transitioningYellowBelt, setTransitioningYellowBelt] = useState(false)
+  const [yellowBeltTransitionError, setYellowBeltTransitionError] =
+    useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [changingStatus, setChangingStatus] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const currentBelt = student?.currentBeltRankId
+    ? beltRanks.find((belt) => belt.id === student.currentBeltRankId)
+    : undefined
+
+  const isJuniorYellowBelt = currentBelt?.beltCode === 'HOANG-TN'
+
+  const canTransitionToYellowBelt =
+    isJuniorYellowBelt &&
+    !!student?.dateOfBirth &&
+    hasReachedAge(student.dateOfBirth, 12, new Date())
 
   useEffect(() => {
     if (!studentId) {
@@ -123,6 +161,54 @@ export default function StudentDetailPage() {
 
     return () => controller.abort()
   }, [studentId])
+
+  async function handleTransitionJuniorYellowBelt() {
+    if (!student || !studentId || !canTransitionToYellowBelt) return
+
+    const confirmed = window.confirm(
+      'Xác nhận chuyển Môn sinh từ Hoàng đai thiếu nhi sang Hoàng đai? Đây là chuyển đổi theo độ tuổi, không phải kết quả thi đai.',
+    )
+
+    if (!confirmed) return
+
+    const today = new Date()
+    const transitionDate = [
+      today.getFullYear(),
+      String(today.getMonth() + 1).padStart(2, '0'),
+      String(today.getDate()).padStart(2, '0'),
+    ].join('-')
+
+    try {
+      setTransitioningYellowBelt(true)
+      setYellowBeltTransitionError(null)
+
+      await transitionJuniorYellowBelt(studentId, {
+        tenantId: student.tenantId,
+        transitionDate,
+        note: 'Chuyển từ Hoàng đai thiếu nhi sang Hoàng đai khi đủ 12 tuổi.',
+        userId: null,
+      })
+
+      const updatedStudent = await getStudent(studentId)
+
+      setStudent(updatedStudent)
+
+      const updatedCurrentBelt = beltRanks.find(
+        (belt) => belt.id === updatedStudent.currentBeltRankId,
+      )
+
+      setBeltName(updatedCurrentBelt?.beltName ?? 'Chưa xếp đai')
+    } catch (err) {
+      console.error(err)
+      setYellowBeltTransitionError(
+        err instanceof Error
+          ? err.message
+          : 'Không thể chuyển sang Hoàng đai. Vui lòng thử lại.',
+      )
+    } finally {
+      setTransitioningYellowBelt(false)
+    }
+  }
 
   async function handleRecordBeltResult() {
     if (!student || !studentId) return
@@ -325,6 +411,38 @@ export default function StudentDetailPage() {
             </div>
           </section>
 
+          {canTransitionToYellowBelt && (
+            <section className="detail-card">
+              <div className="form-section-heading">
+                <h2>Chuyển sang Hoàng đai</h2>
+                <p>
+                  Môn sinh đang mang Hoàng đai thiếu nhi và đã đủ 12 tuổi.
+                  Sau khi hoàn thiện, kiểm tra hồ sơ, có thể chuyển sang Hoàng đai.
+                  Đây là chuyển đổi theo độ tuổi, không phải một lần thi đai.
+                </p>
+              </div>
+
+              {yellowBeltTransitionError && (
+                <div className="form-error">
+                  <AlertCircle size={18} />
+                  <span>{yellowBeltTransitionError}</span>
+                </div>
+              )}
+
+              <div className="form-actions">
+                <button
+                  className="primary-button"
+                  type="button"
+                  disabled={transitioningYellowBelt}
+                  onClick={() => void handleTransitionJuniorYellowBelt()}
+                >
+                  {transitioningYellowBelt
+                    ? 'Đang chuyển...'
+                    : 'Chuyển sang Hoàng đai'}
+                </button>
+              </div>
+            </section>
+          )}
           <section className="form-section belt-history-section">
             <div className="belt-history-heading">
               <div className="form-section-heading">
