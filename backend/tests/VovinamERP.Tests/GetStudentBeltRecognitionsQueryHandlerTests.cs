@@ -41,7 +41,8 @@ public sealed class GetStudentBeltRecognitionsQueryHandlerTests
                 new DateOnly(2026, 7, 12),
                 BeltRankRecognitionSource.BeltExam,
                 examResultId,
-                "Công nhận kết quả thi.")
+                "Công nhận kết quả thi.",
+                null)
         };
 
         var studentRepository = new Mock<IStudentRepository>();

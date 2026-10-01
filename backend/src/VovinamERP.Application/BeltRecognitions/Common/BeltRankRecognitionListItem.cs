@@ -11,4 +11,5 @@ public sealed record BeltRankRecognitionListItem(
     DateOnly RecognitionDate,
     BeltRankRecognitionSource Source,
     Guid? BeltExamStudentResultId,
-    string? Note);
+    string? Note,
+    BeltRankDocumentListItem? Document);

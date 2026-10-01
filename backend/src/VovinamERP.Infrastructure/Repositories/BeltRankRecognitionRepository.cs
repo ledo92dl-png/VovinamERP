@@ -30,6 +30,21 @@ public sealed class BeltRankRecognitionRepository
                 .Set<BeltRank>()
                 .AsNoTracking()
                 on recognition.BeltRankId equals belt.Id
+            join document in _context
+                .Set<BeltRankDocument>()
+                .AsNoTracking()
+                on new
+                {
+                    recognition.TenantId,
+                    BeltRankRecognitionId = recognition.Id
+                }
+                equals new
+                {
+                    document.TenantId,
+                    document.BeltRankRecognitionId
+                }
+                into documentGroup
+            from document in documentGroup.DefaultIfEmpty()
             where recognition.TenantId == tenantId
                   && recognition.StudentId == studentId
                   && !recognition.IsArchived
@@ -44,7 +59,16 @@ public sealed class BeltRankRecognitionRepository
                 recognition.RecognitionDate,
                 recognition.Source,
                 recognition.BeltExamStudentResultId,
-                recognition.Note))
+                recognition.Note,
+                document == null
+                    ? null
+                    : new BeltRankDocumentListItem(
+                        document.Id,
+                        document.DocumentType,
+                        document.DocumentNumber,
+                        document.SignedDate,
+                        document.ScanUrl,
+                        document.Note)))
             .ToListAsync(cancellationToken);
     }
 }

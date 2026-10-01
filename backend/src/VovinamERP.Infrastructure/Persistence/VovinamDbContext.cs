@@ -40,6 +40,7 @@ public sealed class VovinamDbContext
     public DbSet<BeltExamSubject> BeltExamSubjects => Set<BeltExamSubject>();
     public DbSet<BeltExamScore> BeltExamScores => Set<BeltExamScore>();
     public DbSet<BeltRankRecognition> BeltRankRecognitions => Set<BeltRankRecognition>();
+    public DbSet<BeltRankDocument> BeltRankDocuments => Set<BeltRankDocument>();
     public DbSet<Instructor> Instructors => Set<Instructor>();
     public DbSet<Guardian> Guardians => Set<Guardian>();
     public DbSet<StudentGuardian> StudentGuardians => Set<StudentGuardian>();
