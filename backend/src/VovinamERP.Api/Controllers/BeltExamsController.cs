@@ -7,6 +7,7 @@ using VovinamERP.Application.BeltExams.AddBeltExamStudentResult;
 using VovinamERP.Application.BeltExams.AddBeltExamSubject;
 using VovinamERP.Application.BeltExams.GetBeltExamScoreSheet;
 using VovinamERP.Application.BeltExams.CreateBeltExam;
+using VovinamERP.Application.BeltRecognitions.RecognizeBeltExamResult;
 using VovinamERP.Domain.BeltExams;
 using VovinamERP.Domain.Persons;
 using VovinamERP.Domain.Students;
@@ -108,6 +109,58 @@ public sealed class BeltExamsController : ControllerBase
                 Id = result.Value
             });
     }
+
+    [HttpPost("{beltExamId:guid}/results/{studentResultId:guid}/recognition")]
+    public async Task<IActionResult> RecognizeStudentResult(
+        Guid beltExamId,
+        Guid studentResultId,
+        [FromBody] RecognizeBeltExamResultRequest request,
+        CancellationToken cancellationToken)
+    {
+        var studentResultExists = await _dbContext
+            .Set<BeltExamStudentResult>()
+            .AsNoTracking()
+            .AnyAsync(
+                x =>
+                    x.Id == studentResultId &&
+                    x.TenantId == request.TenantId &&
+                    x.BeltExamId == beltExamId &&
+                    !x.IsArchived,
+                cancellationToken);
+
+        if (!studentResultExists)
+        {
+            return NotFound();
+        }
+
+        var command = new RecognizeBeltExamResultCommand(
+            request.TenantId,
+            studentResultId,
+            request.RecognitionDate,
+            request.Note,
+            null);
+
+        var result = await _sender.Send(
+            command,
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return BadRequest(new
+            {
+                Code = result.Error.Code,
+                Message = result.Error.Message
+            });
+        }
+
+        return Created(
+            $"/api/belt-exams/{beltExamId}/results/{studentResultId}/recognition?tenantId={request.TenantId}",
+            new
+            {
+                Id = result.Value
+            });
+    }
+
     [HttpPost("{beltExamId:guid}/results/{studentResultId:guid}/scores")]
     public async Task<IActionResult> AddScore(
         Guid beltExamId,
