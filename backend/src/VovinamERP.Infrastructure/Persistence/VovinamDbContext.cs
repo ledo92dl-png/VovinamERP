@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using VovinamERP.Application.Common.Interfaces;
 using VovinamERP.Domain.Belts;
 using VovinamERP.Domain.BeltExams;
+using VovinamERP.Domain.BeltRecognitions;
 using VovinamERP.Domain.Finance;
 using VovinamERP.Domain.Guardians;
 using VovinamERP.Domain.Instructors;
@@ -38,6 +39,7 @@ public sealed class VovinamDbContext
     public DbSet<BeltExamStudentResult> BeltExamStudentResults => Set<BeltExamStudentResult>();
     public DbSet<BeltExamSubject> BeltExamSubjects => Set<BeltExamSubject>();
     public DbSet<BeltExamScore> BeltExamScores => Set<BeltExamScore>();
+    public DbSet<BeltRankRecognition> BeltRankRecognitions => Set<BeltRankRecognition>();
     public DbSet<Instructor> Instructors => Set<Instructor>();
     public DbSet<Guardian> Guardians => Set<Guardian>();
     public DbSet<StudentGuardian> StudentGuardians => Set<StudentGuardian>();
