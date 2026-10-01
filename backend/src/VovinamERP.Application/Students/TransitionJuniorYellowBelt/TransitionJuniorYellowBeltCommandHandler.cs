@@ -5,6 +5,7 @@ using IPersonRepository =
 using VovinamERP.Application.Students.Common;
 using VovinamERP.Application.Students.RecordStudentBeltResult;
 using VovinamERP.Domain.Belts;
+using VovinamERP.Domain.BeltRecognitions;
 using VovinamERP.SharedKernel.Results;
 
 namespace VovinamERP.Application.Students.TransitionJuniorYellowBelt;
@@ -15,17 +16,20 @@ public sealed class TransitionJuniorYellowBeltCommandHandler
     private readonly IStudentRepository _studentRepository;
     private readonly IPersonRepository _personRepository;
     private readonly IRepository<BeltRank> _beltRankRepository;
+    private readonly IRepository<BeltRankRecognition> _recognitionRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public TransitionJuniorYellowBeltCommandHandler(
         IStudentRepository studentRepository,
         IPersonRepository personRepository,
         IRepository<BeltRank> beltRankRepository,
+        IRepository<BeltRankRecognition> recognitionRepository,
         IUnitOfWork unitOfWork)
     {
         _studentRepository = studentRepository;
         _personRepository = personRepository;
         _beltRankRepository = beltRankRepository;
+        _recognitionRepository = recognitionRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -127,6 +131,38 @@ public sealed class TransitionJuniorYellowBeltCommandHandler
                     "Junior yellow belt and yellow belt must have the same level."));
         }
 
+        var ageTransitionRecognitionExists =
+            await _recognitionRepository.ExistsAsync(
+                x =>
+                    x.TenantId == request.TenantId &&
+                    x.StudentId == student.Id &&
+                    x.BeltRankId == yellowBelt.Id &&
+                    x.Source == BeltRankRecognitionSource.AgeTransition,
+                cancellationToken);
+
+        if (ageTransitionRecognitionExists)
+        {
+            return Result.Failure(
+                new Error(
+                    "STUDENT_BELT_TRANSITION_009",
+                    "The junior yellow belt transition has already been recognized."));
+        }
+
+        var recognitionResult = BeltRankRecognition.Create(
+            request.TenantId,
+            student.Id,
+            yellowBelt.Id,
+            request.TransitionDate,
+            BeltRankRecognitionSource.AgeTransition,
+            null,
+            request.Note);
+
+        if (recognitionResult.IsFailure)
+        {
+            return Result.Failure(
+                recognitionResult.Error);
+        }
+
         var changeResult = student.ChangeCurrentBelt(
             yellowBelt.Id,
             request.TransitionDate,
@@ -137,6 +173,10 @@ public sealed class TransitionJuniorYellowBeltCommandHandler
         {
             return changeResult;
         }
+
+        await _recognitionRepository.AddAsync(
+            recognitionResult.Value,
+            cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

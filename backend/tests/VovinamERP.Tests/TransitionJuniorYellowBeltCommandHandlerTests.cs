@@ -5,6 +5,7 @@ using VovinamERP.Application.Students.Common;
 using VovinamERP.Application.Students.RecordStudentBeltResult;
 using VovinamERP.Application.Students.TransitionJuniorYellowBelt;
 using VovinamERP.Domain.Belts;
+using VovinamERP.Domain.BeltRecognitions;
 using VovinamERP.Domain.Persons;
 using VovinamERP.Domain.Students;
 using IPersonRepository =
@@ -180,6 +181,141 @@ public sealed class TransitionJuniorYellowBeltCommandHandlerTests
             Times.Never);
     }
 
+    [Fact]
+    public async Task Handle_ValidTransition_ShouldCreateAgeTransitionRecognition()
+    {
+        var setup = CreateSetup(
+            new DateOnly(2014, 9, 30),
+            StudentBeltAgePolicy.JuniorYellowBeltCode,
+            6,
+            6);
+
+        var transitionDate = new DateOnly(2026, 9, 30);
+        var userId = Guid.NewGuid();
+        BeltRankRecognition? savedRecognition = null;
+
+        setup.RecognitionRepository
+            .Setup(x => x.AddAsync(
+                It.IsAny<BeltRankRecognition>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<BeltRankRecognition, CancellationToken>(
+                (recognition, _) =>
+                    savedRecognition = recognition)
+            .Returns(Task.CompletedTask);
+
+        var result = await setup.Handler.Handle(
+            new TransitionJuniorYellowBeltCommand(
+                setup.TenantId,
+                setup.Student.Id,
+                transitionDate,
+                "Chuyển Hoàng đai khi đủ 12 tuổi",
+                userId),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(savedRecognition);
+
+        Assert.Equal(
+            setup.TenantId,
+            savedRecognition!.TenantId);
+
+        Assert.Equal(
+            setup.Student.Id,
+            savedRecognition.StudentId);
+
+        Assert.Equal(
+            setup.YellowBelt.Id,
+            savedRecognition.BeltRankId);
+
+        Assert.Equal(
+            transitionDate,
+            savedRecognition.RecognitionDate);
+
+        Assert.Equal(
+            BeltRankRecognitionSource.AgeTransition,
+            savedRecognition.Source);
+
+        Assert.Null(
+            savedRecognition.BeltExamStudentResultId);
+
+        Assert.Equal(
+            "Chuyển Hoàng đai khi đủ 12 tuổi",
+            savedRecognition.Note);
+
+        Assert.Equal(
+            setup.YellowBelt.Id,
+            setup.Student.CurrentBeltRankId);
+
+        setup.RecognitionRepository.Verify(
+            x => x.AddAsync(
+                It.IsAny<BeltRankRecognition>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+
+        setup.UnitOfWork.Verify(
+            x => x.SaveChangesAsync(
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+    [Fact]
+    public async Task Handle_ExistingAgeTransitionRecognition_ShouldFailWithoutChangingBelt()
+    {
+        var setup = CreateSetup(
+            new DateOnly(2014, 9, 30),
+            StudentBeltAgePolicy.JuniorYellowBeltCode,
+            6,
+            6);
+
+        var existingRecognitionResult =
+            BeltRankRecognition.Create(
+                setup.TenantId,
+                setup.Student.Id,
+                setup.YellowBelt.Id,
+                new DateOnly(2026, 9, 30),
+                BeltRankRecognitionSource.AgeTransition,
+                null,
+                "Existing age transition");
+
+        Assert.True(existingRecognitionResult.IsSuccess);
+
+        setup.RecognitionRepository
+            .Setup(x => x.ExistsAsync(
+                It.IsAny<Expression<Func<BeltRankRecognition, bool>>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var originalBeltId =
+            setup.Student.CurrentBeltRankId;
+
+        var result = await setup.Handler.Handle(
+            new TransitionJuniorYellowBeltCommand(
+                setup.TenantId,
+                setup.Student.Id,
+                new DateOnly(2026, 9, 30),
+                "Duplicate age transition",
+                Guid.NewGuid()),
+            CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(
+            "STUDENT_BELT_TRANSITION_009",
+            result.Error.Code);
+
+        Assert.Equal(
+            originalBeltId,
+            setup.Student.CurrentBeltRankId);
+
+        setup.RecognitionRepository.Verify(
+            x => x.AddAsync(
+                It.IsAny<BeltRankRecognition>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+
+        setup.UnitOfWork.Verify(
+            x => x.SaveChangesAsync(
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
     private static TransitionSetup CreateSetup(
         DateOnly? dateOfBirth,
         string currentBeltCode,
@@ -214,6 +350,8 @@ public sealed class TransitionJuniorYellowBeltCommandHandlerTests
         var studentRepository = new Mock<IStudentRepository>();
         var personRepository = new Mock<IPersonRepository>();
         var beltRankRepository = new Mock<IRepository<BeltRank>>();
+        var recognitionRepository =
+            new Mock<IRepository<BeltRankRecognition>>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         studentRepository
@@ -250,6 +388,7 @@ public sealed class TransitionJuniorYellowBeltCommandHandlerTests
             studentRepository.Object,
             personRepository.Object,
             beltRankRepository.Object,
+            recognitionRepository.Object,
             unitOfWork.Object);
 
         return new TransitionSetup(
@@ -258,6 +397,7 @@ public sealed class TransitionJuniorYellowBeltCommandHandlerTests
             currentBelt,
             yellowBelt,
             handler,
+            recognitionRepository,
             unitOfWork);
     }
 
@@ -328,5 +468,6 @@ public sealed class TransitionJuniorYellowBeltCommandHandlerTests
         BeltRank CurrentBelt,
         BeltRank YellowBelt,
         TransitionJuniorYellowBeltCommandHandler Handler,
+        Mock<IRepository<BeltRankRecognition>> RecognitionRepository,
         Mock<IUnitOfWork> UnitOfWork);
 }
