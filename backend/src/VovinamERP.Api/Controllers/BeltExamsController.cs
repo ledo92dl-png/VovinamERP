@@ -2,9 +2,12 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VovinamERP.Api.Contracts.BeltExams;
+using VovinamERP.Application.BeltExams.AddBeltExamStudentResult;
 using VovinamERP.Application.BeltExams.AddBeltExamSubject;
 using VovinamERP.Application.BeltExams.CreateBeltExam;
 using VovinamERP.Domain.BeltExams;
+using VovinamERP.Domain.Persons;
+using VovinamERP.Domain.Students;
 using VovinamERP.Infrastructure.Persistence;
 
 namespace VovinamERP.Api.Controllers;
@@ -65,6 +68,44 @@ public sealed class BeltExamsController : ControllerBase
             });
     }
 
+    [HttpPost("{beltExamId:guid}/results")]
+    public async Task<IActionResult> AddStudentResult(
+        Guid beltExamId,
+        [FromBody] AddBeltExamStudentResultRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new AddBeltExamStudentResultCommand(
+            request.TenantId,
+            beltExamId,
+            request.StudentId,
+            request.UnitName,
+            request.SourceResult,
+            request.Result,
+            request.TotalScore,
+            request.Ranking,
+            request.Note,
+            null);
+
+        var result = await _sender.Send(
+            command,
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return BadRequest(new
+            {
+                Code = result.Error.Code,
+                Message = result.Error.Message
+            });
+        }
+
+        return Created(
+            $"/api/belt-exams/{beltExamId}/results?tenantId={request.TenantId}",
+            new
+            {
+                Id = result.Value
+            });
+    }
     [HttpPost("{beltExamId:guid}/subjects")]
     public async Task<IActionResult> AddSubject(
         Guid beltExamId,
@@ -98,6 +139,63 @@ public sealed class BeltExamsController : ControllerBase
             {
                 Id = result.Value
             });
+    }
+    [HttpGet("{beltExamId:guid}/results")]
+    public async Task<IActionResult> GetStudentResults(
+        Guid beltExamId,
+        [FromQuery] Guid tenantId,
+        CancellationToken cancellationToken)
+    {
+        var beltExamExists = await _dbContext
+            .Set<BeltExam>()
+            .AsNoTracking()
+            .AnyAsync(
+                x =>
+                    x.Id == beltExamId &&
+                    x.TenantId == tenantId &&
+                    !x.IsArchived,
+                cancellationToken);
+
+        if (!beltExamExists)
+        {
+            return NotFound();
+        }
+
+        var results =
+            await (
+                from examResult in _dbContext
+                    .Set<BeltExamStudentResult>()
+                    .AsNoTracking()
+                join student in _dbContext
+                    .Set<Student>()
+                    .AsNoTracking()
+                    on examResult.StudentId equals student.Id
+                join person in _dbContext
+                    .Set<Person>()
+                    .AsNoTracking()
+                    on student.PersonId equals person.Id
+                where
+                    examResult.TenantId == tenantId &&
+                    examResult.BeltExamId == beltExamId &&
+                    !examResult.IsArchived
+                orderby
+                    examResult.Ranking,
+                    person.FullName
+                select new
+                {
+                    examResult.Id,
+                    examResult.StudentId,
+                    person.FullName,
+                    examResult.UnitName,
+                    examResult.SourceResult,
+                    examResult.Result,
+                    examResult.TotalScore,
+                    examResult.Ranking,
+                    examResult.Note
+                })
+            .ToListAsync(cancellationToken);
+
+        return Ok(results);
     }
     [HttpGet("{beltExamId:guid}/subjects")]
     public async Task<IActionResult> GetSubjects(
