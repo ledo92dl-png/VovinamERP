@@ -305,6 +305,186 @@ public sealed class RecognizeBeltExamResultCommandHandlerTests
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
+    [Fact]
+    public async Task Handle_OlderThanExistingRecognition_ShouldSaveHistoryWithoutChangingCurrentBelt()
+    {
+        var setup = CreateValidSetup();
+
+        var laterRecognitionResult = BeltRankRecognition.Create(
+            setup.TenantId,
+            setup.Student.Id,
+            Guid.NewGuid(),
+            new DateOnly(2026, 8, 1),
+            BeltRankRecognitionSource.AgeTransition,
+            null,
+            "Mốc công nhận mới hơn");
+
+        Assert.True(laterRecognitionResult.IsSuccess);
+
+        setup.RecognitionRepository
+            .Setup(x => x.ListAsync(
+                It.IsAny<Expression<Func<BeltRankRecognition, bool>>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<BeltRankRecognition>
+            {
+                laterRecognitionResult.Value
+            });
+
+        var originalBeltId = setup.Student.CurrentBeltRankId;
+        BeltRankRecognition? savedRecognition = null;
+
+        setup.RecognitionRepository
+            .Setup(x => x.AddAsync(
+                It.IsAny<BeltRankRecognition>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<BeltRankRecognition, CancellationToken>(
+                (recognition, _) => savedRecognition = recognition)
+            .Returns(Task.CompletedTask);
+
+        var result = await setup.Handler.Handle(
+            new RecognizeBeltExamResultCommand(
+                setup.TenantId,
+                setup.StudentResult.Id,
+                new DateOnly(2026, 7, 13),
+                "Nhập công nhận lịch sử",
+                null),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(savedRecognition);
+        Assert.Equal(
+            new DateOnly(2026, 7, 13),
+            savedRecognition.RecognitionDate);
+
+        Assert.Equal(
+            originalBeltId,
+            setup.Student.CurrentBeltRankId);
+
+        setup.UnitOfWork.Verify(
+            x => x.SaveChangesAsync(
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_OlderThanLegacyPassedHistory_ShouldSaveHistoryWithoutChangingCurrentBelt()
+    {
+        var setup = CreateValidSetup();
+
+        var legacyHistoryResult = StudentBeltHistory.Create(
+            setup.TenantId,
+            setup.Student.Id,
+            Guid.NewGuid(),
+            new DateOnly(2026, 7, 20),
+            StudentBeltResult.Passed,
+            new DateOnly(2026, 8, 1),
+            "Lịch sử cấp đai cũ");
+
+        Assert.True(legacyHistoryResult.IsSuccess);
+
+        setup.HistoryRepository
+            .Setup(x => x.ListAsync(
+                It.IsAny<Expression<Func<StudentBeltHistory, bool>>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<StudentBeltHistory>
+            {
+                legacyHistoryResult.Value
+            });
+
+        var originalBeltId = setup.Student.CurrentBeltRankId;
+        BeltRankRecognition? savedRecognition = null;
+
+        setup.RecognitionRepository
+            .Setup(x => x.AddAsync(
+                It.IsAny<BeltRankRecognition>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<BeltRankRecognition, CancellationToken>(
+                (recognition, _) => savedRecognition = recognition)
+            .Returns(Task.CompletedTask);
+
+        var result = await setup.Handler.Handle(
+            new RecognizeBeltExamResultCommand(
+                setup.TenantId,
+                setup.StudentResult.Id,
+                new DateOnly(2026, 7, 13),
+                "Nhập công nhận lịch sử",
+                null),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(savedRecognition);
+
+        Assert.Equal(
+            originalBeltId,
+            setup.Student.CurrentBeltRankId);
+
+        setup.UnitOfWork.Verify(
+            x => x.SaveChangesAsync(
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+    [Fact]
+    public async Task Handle_LegacyYellowBeltCurrent_WithOlderJuniorYellowResult_ShouldSaveRecognitionWithoutRegressingCurrentBelt()
+    {
+        var setup = CreateValidSetup(
+            dateOfBirth: new DateOnly(2014, 10, 1),
+            targetBeltCode: StudentBeltAgePolicy.JuniorYellowBeltCode,
+            targetBeltName: "Hoàng đai thiếu nhi");
+
+        var yellowBelt = CreateBeltRank(
+            StudentBeltAgePolicy.YellowBeltCode,
+            "Hoàng đai",
+            setup.TargetBelt.Level);
+
+        var beltChangeResult = setup.Student.ChangeCurrentBelt(
+            yellowBelt.Id,
+            new DateOnly(2026, 10, 1),
+            "Legacy age transition",
+            null);
+
+        Assert.True(beltChangeResult.IsSuccess);
+
+        setup.BeltRankRepository
+            .Setup(x => x.GetByIdAsync(
+                yellowBelt.Id,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(yellowBelt);
+
+        BeltRankRecognition? savedRecognition = null;
+
+        setup.RecognitionRepository
+            .Setup(x => x.AddAsync(
+                It.IsAny<BeltRankRecognition>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<BeltRankRecognition, CancellationToken>(
+                (recognition, _) =>
+                    savedRecognition = recognition)
+            .Returns(Task.CompletedTask);
+
+        var result = await setup.Handler.Handle(
+            new RecognizeBeltExamResultCommand(
+                setup.TenantId,
+                setup.StudentResult.Id,
+                new DateOnly(2026, 7, 13),
+                "Historical junior yellow belt result",
+                null),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(savedRecognition);
+        Assert.Equal(
+            setup.TargetBelt.Id,
+            savedRecognition!.BeltRankId);
+
+        Assert.Equal(
+            yellowBelt.Id,
+            setup.Student.CurrentBeltRankId);
+
+        setup.UnitOfWork.Verify(
+            x => x.SaveChangesAsync(
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
     private static RecognitionSetup CreateValidSetup(
         StudentBeltResult examResult =
             StudentBeltResult.Passed,
@@ -361,6 +541,9 @@ public sealed class RecognizeBeltExamResultCommandHandlerTests
         var recognitionRepository =
             new Mock<IRepository<BeltRankRecognition>>();
 
+        var historyRepository =
+            new Mock<IRepository<StudentBeltHistory>>();
+
         var studentRepository =
             new Mock<IStudentRepository>();
 
@@ -402,6 +585,18 @@ public sealed class RecognizeBeltExamResultCommandHandlerTests
             .ReturnsAsync(false);
 
         recognitionRepository
+            .Setup(x => x.ListAsync(
+                It.IsAny<Expression<Func<BeltRankRecognition, bool>>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<BeltRankRecognition>());
+
+        historyRepository
+            .Setup(x => x.ListAsync(
+                It.IsAny<Expression<Func<StudentBeltHistory, bool>>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<StudentBeltHistory>());
+
+        recognitionRepository
             .Setup(x => x.AddAsync(
                 It.IsAny<BeltRankRecognition>(),
                 It.IsAny<CancellationToken>()))
@@ -424,6 +619,7 @@ public sealed class RecognizeBeltExamResultCommandHandlerTests
                 examRepository.Object,
                 beltRankRepository.Object,
                 recognitionRepository.Object,
+                historyRepository.Object,
                 studentRepository.Object,
                 personRepository.Object,
                 unitOfWork.Object);
@@ -437,7 +633,9 @@ public sealed class RecognizeBeltExamResultCommandHandlerTests
             studentResult,
             resultRepository,
             examRepository,
+            beltRankRepository,
             recognitionRepository,
+            historyRepository,
             studentRepository,
             personRepository,
             unitOfWork,
@@ -604,7 +802,9 @@ public sealed class RecognizeBeltExamResultCommandHandlerTests
         BeltExamStudentResult StudentResult,
         Mock<IRepository<BeltExamStudentResult>> ResultRepository,
         Mock<IRepository<BeltExam>> ExamRepository,
+        Mock<IRepository<BeltRank>> BeltRankRepository,
         Mock<IRepository<BeltRankRecognition>> RecognitionRepository,
+        Mock<IRepository<StudentBeltHistory>> HistoryRepository,
         Mock<IStudentRepository> StudentRepository,
         Mock<IPersonRepository> PersonRepository,
         Mock<IUnitOfWork> UnitOfWork,

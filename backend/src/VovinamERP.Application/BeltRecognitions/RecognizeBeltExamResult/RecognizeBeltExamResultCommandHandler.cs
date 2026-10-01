@@ -19,6 +19,7 @@ public sealed class RecognizeBeltExamResultCommandHandler
     private readonly IRepository<BeltExam> _examRepository;
     private readonly IRepository<BeltRank> _beltRankRepository;
     private readonly IRepository<BeltRankRecognition> _recognitionRepository;
+    private readonly IRepository<StudentBeltHistory> _historyRepository;
     private readonly IStudentRepository _studentRepository;
     private readonly IPersonRepository _personRepository;
     private readonly IUnitOfWork _unitOfWork;
@@ -28,6 +29,7 @@ public sealed class RecognizeBeltExamResultCommandHandler
         IRepository<BeltExam> examRepository,
         IRepository<BeltRank> beltRankRepository,
         IRepository<BeltRankRecognition> recognitionRepository,
+        IRepository<StudentBeltHistory> historyRepository,
         IStudentRepository studentRepository,
         IPersonRepository personRepository,
         IUnitOfWork unitOfWork)
@@ -36,6 +38,7 @@ public sealed class RecognizeBeltExamResultCommandHandler
         _examRepository = examRepository;
         _beltRankRepository = beltRankRepository;
         _recognitionRepository = recognitionRepository;
+        _historyRepository = historyRepository;
         _studentRepository = studentRepository;
         _personRepository = personRepository;
         _unitOfWork = unitOfWork;
@@ -164,16 +167,64 @@ public sealed class RecognizeBeltExamResultCommandHandler
                 recognitionResult.Error);
         }
 
-        var beltChangeResult = student.ChangeCurrentBelt(
-            beltRank.Id,
-            request.RecognitionDate,
-            request.Note,
-            request.UserId);
+        var laterRecognitions = await _recognitionRepository.ListAsync(
+            x =>
+                x.TenantId == request.TenantId &&
+                x.StudentId == student.Id &&
+                !x.IsArchived &&
+                x.RecognitionDate > request.RecognitionDate,
+            cancellationToken);
 
-        if (beltChangeResult.IsFailure)
+        var laterLegacyHistories = await _historyRepository.ListAsync(
+            x =>
+                x.TenantId == request.TenantId &&
+                x.StudentId == student.Id &&
+                !x.IsArchived &&
+                x.Result == StudentBeltResult.Passed &&
+                x.AwardedDate.HasValue &&
+                x.AwardedDate.Value > request.RecognitionDate,
+            cancellationToken);
+
+        var hasLaterBeltMilestone =
+            laterRecognitions.Count > 0 ||
+            laterLegacyHistories.Count > 0;
+
+        var isLegacyJuniorToYellowTransition = false;
+
+        if (beltRank.BeltCode ==
+                StudentBeltAgePolicy.JuniorYellowBeltCode &&
+            student.CurrentBeltRankId.HasValue &&
+            student.CurrentBeltRankId.Value != beltRank.Id)
         {
-            return Result<Guid>.Failure(
-                beltChangeResult.Error);
+            var currentBeltRank =
+                await _beltRankRepository.GetByIdAsync(
+                    student.CurrentBeltRankId.Value,
+                    cancellationToken);
+
+            isLegacyJuniorToYellowTransition =
+                currentBeltRank is not null &&
+                !currentBeltRank.IsArchived &&
+                currentBeltRank.BeltCode ==
+                    StudentBeltAgePolicy.YellowBeltCode;
+        }
+
+        var shouldChangeCurrentBelt =
+            !hasLaterBeltMilestone &&
+            !isLegacyJuniorToYellowTransition;
+
+        if (shouldChangeCurrentBelt)
+        {
+            var beltChangeResult = student.ChangeCurrentBelt(
+                beltRank.Id,
+                request.RecognitionDate,
+                request.Note,
+                request.UserId);
+
+            if (beltChangeResult.IsFailure)
+            {
+                return Result<Guid>.Failure(
+                    beltChangeResult.Error);
+            }
         }
 
         await _recognitionRepository.AddAsync(
