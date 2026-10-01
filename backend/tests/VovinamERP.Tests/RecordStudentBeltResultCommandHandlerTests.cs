@@ -466,6 +466,99 @@ public sealed class RecordStudentBeltResultCommandHandlerTests
             Times.Once);
     }
 
+    [Fact]
+    public async Task Handle_PassedResultWithoutAwardedDate_ShouldFailWithoutSaving()
+    {
+        var tenantId = Guid.NewGuid();
+
+        var person = CreatePerson(
+            tenantId,
+            "P-NO-AWARD-DATE",
+            null);
+
+        var currentBelt = CreateBeltRank(
+            "LAM-2",
+            "Lam dai II",
+            4);
+
+        var targetBelt = CreateBeltRank(
+            "LAM-3",
+            "Lam dai III",
+            5);
+
+        var student = CreateStudent(
+            tenantId,
+            person.Id,
+            currentBelt.Id,
+            "MS-NO-AWARD-DATE");
+
+        var studentRepository = new Mock<IStudentRepository>();
+        var personRepository = new Mock<IPersonRepository>();
+        var beltRankRepository = new Mock<IRepository<BeltRank>>();
+        var beltHistoryRepository =
+            new Mock<IRepository<StudentBeltHistory>>();
+        var unitOfWork = new Mock<IUnitOfWork>();
+
+        studentRepository
+            .Setup(x => x.GetByIdAsync(
+                tenantId,
+                student.Id,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(student);
+
+        personRepository
+            .Setup(x => x.GetByIdAsync(
+                person.Id,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(person);
+
+        beltRankRepository
+            .Setup(x => x.GetByIdAsync(
+                targetBelt.Id,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(targetBelt);
+
+        var handler = new RecordStudentBeltResultCommandHandler(
+            studentRepository.Object,
+            personRepository.Object,
+            beltRankRepository.Object,
+            beltHistoryRepository.Object,
+            unitOfWork.Object);
+
+        var command = new RecordStudentBeltResultCommand(
+            tenantId,
+            student.Id,
+            targetBelt.Id,
+            new DateOnly(2026, 9, 20),
+            StudentBeltResult.Passed,
+            null,
+            null,
+            null);
+
+        var result = await handler.Handle(
+            command,
+            CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(
+            "STUDENT_BELT_004",
+            result.Error.Code);
+
+        Assert.Equal(
+            currentBelt.Id,
+            student.CurrentBeltRankId);
+
+        beltHistoryRepository.Verify(
+            x => x.AddAsync(
+                It.IsAny<StudentBeltHistory>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+
+        unitOfWork.Verify(
+            x => x.SaveChangesAsync(
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
     private static AgeRuleSetup CreateAgeRuleSetup(
         DateOnly dateOfBirth,
         string targetBeltCode,

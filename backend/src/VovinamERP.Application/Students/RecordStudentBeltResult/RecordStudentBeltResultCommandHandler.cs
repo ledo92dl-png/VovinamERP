@@ -62,6 +62,15 @@ public sealed class RecordStudentBeltResultCommandHandler
                     "Belt rank was not found or is inactive."));
         }
 
+        if (request.Result == StudentBeltResult.Passed &&
+            request.AwardedDate is null)
+        {
+            return Result<Guid>.Failure(
+                new Error(
+                    "STUDENT_BELT_004",
+                    "Awarded date is required for a passed belt result."));
+        }
+
         if (request.Result == StudentBeltResult.Passed)
         {
             var person = await _personRepository.GetByIdAsync(
