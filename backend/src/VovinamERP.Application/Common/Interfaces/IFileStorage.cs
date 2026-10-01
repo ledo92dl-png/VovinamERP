@@ -10,6 +10,10 @@ public interface IFileStorage
         string category,
         CancellationToken cancellationToken = default);
 
+    Task<StoredFileRead?> OpenReadAsync(
+        string storedPath,
+        CancellationToken cancellationToken = default);
+
     Task DeleteAsync(
         string storedPath,
         CancellationToken cancellationToken = default);
@@ -17,6 +21,12 @@ public interface IFileStorage
 
 public sealed record StoredFile(
     string StoredPath,
+    string FileName,
+    string ContentType,
+    long Size);
+
+public sealed record StoredFileRead(
+    Stream Content,
     string FileName,
     string ContentType,
     long Size);

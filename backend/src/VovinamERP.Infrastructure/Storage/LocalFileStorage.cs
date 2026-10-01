@@ -112,6 +112,77 @@ public sealed class LocalFileStorage : IFileStorage
             size);
     }
 
+    public Task<StoredFileRead?> OpenReadAsync(
+        string storedPath,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (string.IsNullOrWhiteSpace(storedPath))
+        {
+            throw new ArgumentException(
+                "Stored path is required.",
+                nameof(storedPath));
+        }
+
+        const string prefix = "/uploads/";
+
+        if (!storedPath.StartsWith(
+                prefix,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                "Stored path is invalid.",
+                nameof(storedPath));
+        }
+
+        var relativePath = storedPath[prefix.Length..]
+            .Replace('/', Path.DirectorySeparatorChar);
+
+        var absolutePath = Path.GetFullPath(
+            Path.Combine(
+                _rootPath,
+                relativePath));
+
+        EnsureInsideRoot(absolutePath);
+
+        if (!File.Exists(absolutePath))
+        {
+            return Task.FromResult<StoredFileRead?>(null);
+        }
+
+        var extension = Path
+            .GetExtension(absolutePath)
+            .ToLowerInvariant();
+
+        var contentType = extension switch
+        {
+            ".jpg" => "image/jpeg",
+            ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".webp" => "image/webp",
+            ".pdf" => "application/pdf",
+            _ => "application/octet-stream"
+        };
+
+        var stream = new FileStream(
+            absolutePath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            81920,
+            useAsync: true);
+
+        StoredFileRead result = new(
+            stream,
+            Path.GetFileName(absolutePath),
+            contentType,
+            stream.Length);
+
+        return Task.FromResult<StoredFileRead?>(
+            result);
+    }
+
     public Task DeleteAsync(
         string storedPath,
         CancellationToken cancellationToken = default)

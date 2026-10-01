@@ -104,6 +104,72 @@ public sealed class LocalFileStorageTests : IDisposable
     }
 
     [Fact]
+    public async Task OpenReadAsync_ShouldReadStoredFile()
+    {
+        var storage = new LocalFileStorage(_rootPath);
+        var tenantId = Guid.NewGuid();
+        var bytes = Encoding.UTF8.GetBytes(
+            "vovinam-read-test");
+
+        await using var sourceStream =
+            new MemoryStream(bytes);
+
+        var stored = await storage.SaveAsync(
+            sourceStream,
+            "scan.pdf",
+            "application/pdf",
+            tenantId,
+            "belt-rank-documents");
+
+        var result = await storage.OpenReadAsync(
+            stored.StoredPath);
+
+        Assert.NotNull(result);
+        Assert.Equal("application/pdf", result.ContentType);
+        Assert.Equal(bytes.LongLength, result.Size);
+        Assert.EndsWith(".pdf", result.FileName);
+
+        await using var content = result.Content;
+        using var memory = new MemoryStream();
+
+        await content.CopyToAsync(memory);
+
+        Assert.Equal(bytes, memory.ToArray());
+    }
+
+    [Fact]
+    public async Task OpenReadAsync_ShouldReturnNullWhenFileDoesNotExist()
+    {
+        var storage = new LocalFileStorage(_rootPath);
+        var tenantId = Guid.NewGuid();
+
+        var result = await storage.OpenReadAsync(
+            $"/uploads/{tenantId:D}/belt-rank-documents/missing.pdf");
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task OpenReadAsync_ShouldRejectPathOutsideUploads()
+    {
+        var storage = new LocalFileStorage(_rootPath);
+
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => storage.OpenReadAsync(
+                "/other/location/file.pdf"));
+    }
+
+    [Fact]
+    public async Task OpenReadAsync_ShouldRejectPathTraversal()
+    {
+        var storage = new LocalFileStorage(_rootPath);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => storage.OpenReadAsync(
+                "/uploads/../../outside.pdf"));
+    }
+
+    [Fact]
     public async Task DeleteAsync_ShouldDeleteStoredFile()
     {
         var storage = new LocalFileStorage(_rootPath);

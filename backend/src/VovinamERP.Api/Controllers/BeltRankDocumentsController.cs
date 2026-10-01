@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using VovinamERP.Api.Contracts.BeltRecognitions;
+using VovinamERP.Application.BeltRecognitions.GetBeltRankDocumentScan;
 using VovinamERP.Application.BeltRecognitions.UploadBeltRankDocumentScan;
 
 namespace VovinamERP.Api.Controllers;
@@ -64,5 +65,37 @@ public sealed class BeltRankDocumentsController : ControllerBase
         {
             ScanUrl = result.Value
         });
+    }
+
+    [HttpGet("{documentId:guid}/scan")]
+    public async Task<IActionResult> GetScan(
+        Guid documentId,
+        [FromQuery] Guid tenantId,
+        CancellationToken cancellationToken)
+    {
+        var query =
+            new GetBeltRankDocumentScanQuery(
+                tenantId,
+                documentId);
+
+        var result = await _sender.Send(
+            query,
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return NotFound(new
+            {
+                Code = result.Error.Code,
+                Message = result.Error.Message
+            });
+        }
+
+        var file = result.Value;
+
+        return File(
+            file.Content,
+            file.ContentType,
+            file.FileName);
     }
 }
