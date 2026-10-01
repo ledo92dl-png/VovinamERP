@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VovinamERP.Api.Contracts.BeltExams;
+using VovinamERP.Application.BeltExams.AddBeltExamSubject;
 using VovinamERP.Application.BeltExams.CreateBeltExam;
 using VovinamERP.Domain.BeltExams;
 using VovinamERP.Infrastructure.Persistence;
@@ -64,6 +65,80 @@ public sealed class BeltExamsController : ControllerBase
             });
     }
 
+    [HttpPost("{beltExamId:guid}/subjects")]
+    public async Task<IActionResult> AddSubject(
+        Guid beltExamId,
+        [FromBody] AddBeltExamSubjectRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new AddBeltExamSubjectCommand(
+            request.TenantId,
+            beltExamId,
+            request.Name,
+            request.DisplayOrder,
+            request.MaximumScore,
+            null);
+
+        var result = await _sender.Send(
+            command,
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return BadRequest(new
+            {
+                Code = result.Error.Code,
+                Message = result.Error.Message
+            });
+        }
+
+        return Created(
+            $"/api/belt-exams/{beltExamId}/subjects/{result.Value}",
+            new
+            {
+                Id = result.Value
+            });
+    }
+    [HttpGet("{beltExamId:guid}/subjects")]
+    public async Task<IActionResult> GetSubjects(
+        Guid beltExamId,
+        [FromQuery] Guid tenantId,
+        CancellationToken cancellationToken)
+    {
+        var beltExamExists = await _dbContext
+            .Set<BeltExam>()
+            .AsNoTracking()
+            .AnyAsync(
+                x =>
+                    x.Id == beltExamId &&
+                    x.TenantId == tenantId &&
+                    !x.IsArchived,
+                cancellationToken);
+
+        if (!beltExamExists)
+        {
+            return NotFound();
+        }
+
+        var subjects = await _dbContext
+            .Set<BeltExamSubject>()
+            .AsNoTracking()
+            .Where(x =>
+                x.TenantId == tenantId &&
+                x.BeltExamId == beltExamId &&
+                !x.IsArchived)
+            .OrderBy(x => x.DisplayOrder)
+            .Select(x => new
+            {
+                x.Id,
+                x.Name,
+                x.DisplayOrder,
+                x.MaximumScore
+            })
+            .ToListAsync(cancellationToken);
+
+        return Ok(subjects);
+    }
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(
         Guid id,
