@@ -32,6 +32,9 @@ public static class RepositoryServiceCollectionExtensions
     VovinamERP.Application.Students.Common.IStudentBeltHistoryRepository,
     VovinamERP.Infrastructure.Repositories.StudentBeltHistoryRepository>();
         services.AddScoped<
+    VovinamERP.Application.BeltRecognitions.Common.IBeltRankRecognitionRepository,
+    VovinamERP.Infrastructure.Repositories.BeltRankRecognitionRepository>();
+        services.AddScoped<
     VovinamERP.Application.Common.Repositories.IPersonRepository,
     VovinamERP.Infrastructure.Persistence.Repositories.PersonRepository>();
        services.AddScoped<

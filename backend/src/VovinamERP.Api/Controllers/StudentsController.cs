@@ -1,3 +1,4 @@
+using VovinamERP.Application.BeltRecognitions.GetStudentBeltRecognitions;
 using VovinamERP.Application.Students.RecordStudentBeltResult;
 using VovinamERP.Application.Students.GetStudentBeltHistory;
 using VovinamERP.Application.Students.RegenerateStudentQr;
@@ -97,6 +98,32 @@ public sealed class StudentsController : ControllerBase
             StudentBeltHistoryId = result.Value
         });
     }
+    [HttpGet("{studentId:guid}/belt-recognitions")]
+    public async Task<IActionResult> GetBeltRecognitions(
+        Guid studentId,
+        [FromQuery] Guid tenantId,
+        CancellationToken cancellationToken)
+    {
+        var query = new GetStudentBeltRecognitionsQuery(
+            tenantId,
+            studentId);
+
+        var result = await _sender.Send(
+            query,
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return BadRequest(new
+            {
+                Code = result.Error.Code,
+                Message = result.Error.Message
+            });
+        }
+
+        return Ok(result.Value);
+    }
+
        [HttpGet("{studentId:guid}/belt-results")]
     public async Task<IActionResult> GetBeltResults(
         Guid studentId,
