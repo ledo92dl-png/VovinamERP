@@ -272,3 +272,29 @@ export async function getBeltRankDocumentScan(
 
   return response.blob()
 }
+export type CreateManualBeltRecognitionRequest = {
+  tenantId: string
+  beltRankId: string
+  recognitionDate: string
+  note: string | null
+  userId: string | null
+}
+
+export type CreateManualBeltRecognitionResponse = {
+  beltRankRecognitionId: string
+}
+
+export function createManualBeltRecognition(
+  studentId: string,
+  request: CreateManualBeltRecognitionRequest,
+  signal?: AbortSignal,
+): Promise<CreateManualBeltRecognitionResponse> {
+  return apiPost<
+    CreateManualBeltRecognitionResponse,
+    CreateManualBeltRecognitionRequest
+  >(
+    `/api/students/${encodeURIComponent(studentId)}/belt-recognitions`,
+    request,
+    signal,
+  )
+}

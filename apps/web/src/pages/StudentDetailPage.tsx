@@ -19,6 +19,13 @@ import {
   transitionJuniorYellowBelt,
 } from '../lib/studentsApi'
 import type { StudentBeltHistoryItem } from '../lib/studentsApi'
+import {
+  createManualBeltRecognition,
+  getStudentBeltRecognitions,
+} from '../lib/beltExamsApi'
+import type {
+  BeltRankRecognition,
+} from '../lib/beltExamsApi'
 import type { BeltRank, Student } from '../lib/types'
 
 const STUDENT_STATUS = {
@@ -81,6 +88,17 @@ export default function StudentDetailPage() {
 
   const [student, setStudent] = useState<Student | null>(null)
   const [beltHistory, setBeltHistory] = useState<StudentBeltHistoryItem[]>([])
+  const [recognitions, setRecognitions] = useState<BeltRankRecognition[]>([])
+  const [showManualRecognitionForm, setShowManualRecognitionForm] =
+    useState(false)
+  const [manualRecognitionBeltRankId, setManualRecognitionBeltRankId] =
+    useState('')
+  const [manualRecognitionDate, setManualRecognitionDate] = useState('')
+  const [manualRecognitionNote, setManualRecognitionNote] = useState('')
+  const [savingManualRecognition, setSavingManualRecognition] =
+    useState(false)
+  const [manualRecognitionError, setManualRecognitionError] =
+    useState<string | null>(null)
   const [beltRanks, setBeltRanks] = useState<BeltRank[]>([])
   const [showBeltResultForm, setShowBeltResultForm] = useState(false)
   const [beltResultRankId, setBeltResultRankId] = useState('')
@@ -131,13 +149,21 @@ export default function StudentDetailPage() {
         setStudent(studentResult)
         setBeltRanks(beltRankResult)
 
-        const beltHistoryResult = await getStudentBeltHistory(
-          studentId!,
-          studentResult.tenantId,
-          controller.signal,
-        )
+        const [beltHistoryResult, recognitionHistory] = await Promise.all([
+          getStudentBeltHistory(
+            studentId!,
+            studentResult.tenantId,
+            controller.signal,
+          ),
+          getStudentBeltRecognitions(
+            studentId!,
+            studentResult.tenantId,
+            controller.signal,
+          ),
+        ])
 
         setBeltHistory(beltHistoryResult.items)
+        setRecognitions(recognitionHistory.items)
         const belt = beltRankResult.find(
           (item) => item.id === studentResult.currentBeltRankId,
         )
@@ -189,9 +215,13 @@ export default function StudentDetailPage() {
         userId: null,
       })
 
-      const updatedStudent = await getStudent(studentId)
+      const [updatedStudent, updatedRecognitions] = await Promise.all([
+        getStudent(studentId),
+        getStudentBeltRecognitions(studentId, student.tenantId),
+      ])
 
       setStudent(updatedStudent)
+      setRecognitions(updatedRecognitions.items)
 
       const updatedCurrentBelt = beltRanks.find(
         (belt) => belt.id === updatedStudent.currentBeltRankId,
@@ -285,6 +315,61 @@ export default function StudentDetailPage() {
       )
     } finally {
       setSavingBeltResult(false)
+    }
+  }
+  async function handleCreateManualRecognition() {
+    if (!student || !studentId) return
+
+    if (!manualRecognitionBeltRankId) {
+      setManualRecognitionError('Vui lòng chọn cấp đai cần công nhận.')
+      return
+    }
+
+    if (!manualRecognitionDate) {
+      setManualRecognitionError('Vui lòng chọn ngày công nhận.')
+      return
+    }
+
+    try {
+      setSavingManualRecognition(true)
+      setManualRecognitionError(null)
+
+      await createManualBeltRecognition(studentId, {
+        tenantId: student.tenantId,
+        beltRankId: manualRecognitionBeltRankId,
+        recognitionDate: manualRecognitionDate,
+        note: manualRecognitionNote.trim() || null,
+        userId: null,
+      })
+
+      const [updatedStudent, updatedRecognitions] = await Promise.all([
+        getStudent(studentId),
+        getStudentBeltRecognitions(studentId, student.tenantId),
+      ])
+
+      setStudent(updatedStudent)
+      setRecognitions(updatedRecognitions.items)
+
+      const updatedCurrentBelt = beltRanks.find(
+        (belt) => belt.id === updatedStudent.currentBeltRankId,
+      )
+
+      setBeltName(updatedCurrentBelt?.beltName ?? 'Chưa xếp đai')
+
+      setShowManualRecognitionForm(false)
+      setManualRecognitionBeltRankId('')
+      setManualRecognitionDate('')
+      setManualRecognitionNote('')
+    } catch (err) {
+      console.error(err)
+
+      setManualRecognitionError(
+        err instanceof Error
+          ? err.message
+          : 'Không thể công nhận đai. Vui lòng thử lại.',
+      )
+    } finally {
+      setSavingManualRecognition(false)
     }
   }
   async function handleStatusChange(status: number) {
@@ -625,6 +710,176 @@ export default function StudentDetailPage() {
                         </strong>
                       </div>
                     </div>
+
+                    {item.note && (
+                      <div className="belt-history-note">
+                        <span>Ghi chú</span>
+                        <p>{item.note}</p>
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+          <section className="form-section belt-recognition-history-section">
+            <div className="form-section-heading">
+              <h2>Công nhận đai</h2>
+              <p>
+                Theo dõi các mốc đai đã được công nhận chính thức cho Môn sinh.
+              </p>
+            </div>
+
+            <div className="form-actions">
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => {
+                  setShowManualRecognitionForm((current) => !current)
+                  setManualRecognitionError(null)
+                }}
+              >
+                {showManualRecognitionForm
+                  ? 'Đóng'
+                  : '+ Công nhận đai thủ công'}
+              </button>
+            </div>
+
+            {showManualRecognitionForm && (
+              <div className="belt-result-form">
+                {manualRecognitionError && (
+                  <div className="form-error">
+                    <AlertCircle size={18} />
+                    <span>{manualRecognitionError}</span>
+                  </div>
+                )}
+
+                <div className="form-grid">
+                  <label className="form-field">
+                    <span>Cấp đai công nhận</span>
+                    <select
+                      value={manualRecognitionBeltRankId}
+                      onChange={(event) =>
+                        setManualRecognitionBeltRankId(event.target.value)
+                      }
+                    >
+                      <option value="">Chọn cấp đai</option>
+                      {beltRanks.map((belt) => (
+                        <option key={belt.id} value={belt.id}>
+                          {belt.beltName}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="form-field">
+                    <span>Ngày công nhận</span>
+                    <input
+                      type="date"
+                      value={manualRecognitionDate}
+                      onChange={(event) =>
+                        setManualRecognitionDate(event.target.value)
+                      }
+                    />
+                  </label>
+
+                  <label className="form-field form-field-full">
+                    <span>Ghi chú</span>
+                    <textarea
+                      rows={3}
+                      value={manualRecognitionNote}
+                      placeholder="Ví dụ: Công nhận từ hồ sơ cũ, quyết định của CLB..."
+                      onChange={(event) =>
+                        setManualRecognitionNote(event.target.value)
+                      }
+                    />
+                  </label>
+                </div>
+
+                <div className="form-actions">
+                  <button
+                    className="primary-button"
+                    type="button"
+                    disabled={savingManualRecognition}
+                    onClick={() => void handleCreateManualRecognition()}
+                  >
+                    {savingManualRecognition
+                      ? 'Đang lưu...'
+                      : 'Lưu công nhận'}
+                  </button>
+
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    disabled={savingManualRecognition}
+                    onClick={() => {
+                      setShowManualRecognitionForm(false)
+                      setManualRecognitionError(null)
+                    }}
+                  >
+                    Hủy
+                  </button>
+                </div>
+              </div>
+            )}
+            {recognitions.length === 0 ? (
+              <div className="belt-history-empty">
+                <strong>Chưa có mốc công nhận đai</strong>
+                <span>
+                  Các lần công nhận đai chính thức sẽ được hiển thị tại đây.
+                </span>
+              </div>
+            ) : (
+              <div className="belt-history-list">
+                {recognitions.map((item) => (
+                  <article className="belt-history-item" key={item.id}>
+                    <div className="belt-history-main">
+                      <div>
+                        <span className="belt-history-label">
+                          Đai được công nhận
+                        </span>
+                        <strong>{item.beltName}</strong>
+                      </div>
+
+                      <span className="belt-result belt-result-passed">
+                        {item.source === 1
+                          ? 'Từ kỳ thi'
+                          : item.source === 2
+                            ? 'Theo độ tuổi'
+                            : item.source === 3
+                              ? 'Thủ công'
+                              : 'Công nhận'}
+                      </span>
+                    </div>
+
+                    <div className="belt-history-details">
+                      <div>
+                        <span>Ngày công nhận</span>
+                        <strong>{formatDate(item.recognitionDate)}</strong>
+                      </div>
+
+                      <div>
+                        <span>Mã đai</span>
+                        <strong>{item.beltCode}</strong>
+                      </div>
+                    </div>
+
+                    {item.document && (
+                      <div className="belt-history-note">
+                        <span>
+                          {item.document.documentType === 1
+                            ? 'Giấy chứng nhận'
+                            : item.document.documentType === 2
+                              ? 'Bằng đẳng cấp'
+                              : 'Văn bằng'}
+                        </span>
+                        <p>
+                          Số {item.document.documentNumber}
+                          {' · '}
+                          Ngày ký {formatDate(item.document.signedDate)}
+                        </p>
+                      </div>
+                    )}
 
                     {item.note && (
                       <div className="belt-history-note">
