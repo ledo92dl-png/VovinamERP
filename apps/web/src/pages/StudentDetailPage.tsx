@@ -26,6 +26,8 @@ import {
 import type {
   BeltRankRecognition,
 } from '../lib/beltExamsApi'
+import { getStudentAttendanceScore } from '../lib/attendanceApi'
+import type { StudentAttendanceScore } from '../lib/attendanceApi'
 import type { BeltRank, Student } from '../lib/types'
 
 const STUDENT_STATUS = {
@@ -83,10 +85,28 @@ function hasReachedAge(
       onDate >= birthdayThisYear)
   )
 }
+function formatLocalDate(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function getCurrentMonthRange() {
+  const now = new Date()
+  return {
+    fromDate: formatLocalDate(new Date(now.getFullYear(), now.getMonth(), 1)),
+    toDate: formatLocalDate(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
+  }
+}
+
 export default function StudentDetailPage() {
   const { studentId } = useParams()
 
   const [student, setStudent] = useState<Student | null>(null)
+  const [attendanceScore, setAttendanceScore] =
+    useState<StudentAttendanceScore | null>(null)
+  const [attendanceError, setAttendanceError] = useState<string | null>(null)
   const [beltHistory, setBeltHistory] = useState<StudentBeltHistoryItem[]>([])
   const [recognitions, setRecognitions] = useState<BeltRankRecognition[]>([])
   const [showManualRecognitionForm, setShowManualRecognitionForm] =
@@ -164,6 +184,29 @@ export default function StudentDetailPage() {
 
         setBeltHistory(beltHistoryResult.items)
         setRecognitions(recognitionHistory.items)
+
+        setAttendanceScore(null)
+        setAttendanceError(null)
+
+        try {
+          const { fromDate, toDate } = getCurrentMonthRange()
+          const attendanceResult = await getStudentAttendanceScore(
+            studentId!,
+            studentResult.tenantId,
+            fromDate,
+            toDate,
+            controller.signal,
+          )
+
+          if (!controller.signal.aborted) {
+            setAttendanceScore(attendanceResult)
+          }
+        } catch (attendanceErr) {
+          if (!controller.signal.aborted) {
+            console.error(attendanceErr)
+            setAttendanceError('Không thể tải dữ liệu chuyên cần.')
+          }
+        }
         const belt = beltRankResult.find(
           (item) => item.id === studentResult.currentBeltRankId,
         )
@@ -494,6 +537,64 @@ export default function StudentDetailPage() {
               <span>Địa chỉ</span>
               <strong>{student.address || 'Chưa cập nhật'}</strong>
             </div>
+          </section>
+
+          <section className="detail-card">
+            <div className="form-section-heading">
+              <h2>Chuyên cần</h2>
+              <p>Tháng {new Date().getMonth() + 1}/{new Date().getFullYear()}</p>
+            </div>
+
+            {attendanceError ? (
+              <div className="form-error">
+                <AlertCircle size={18} />
+                <span>{attendanceError}</span>
+              </div>
+            ) : attendanceScore?.score == null ? (
+              <div className="detail-row">
+                <span>Điểm chuyên cần</span>
+                <strong>Chưa có dữ liệu</strong>
+              </div>
+            ) : (
+              <>
+                <div className="detail-row">
+                  <span>Điểm chuyên cần</span>
+                  <strong>{attendanceScore.score.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} / 100</strong>
+                </div>
+                <div className="detail-row">
+                  <span>Tham gia / Bắt buộc</span>
+                  <strong>{attendanceScore.actualAttendedSessionCount} / {attendanceScore.requiredSessionCount} buổi</strong>
+                </div>
+                <div className="detail-row">
+                  <span>Tỷ lệ chuyên cần</span>
+                  <strong>{((attendanceScore.attendanceRate ?? 0) * 100).toLocaleString('vi-VN', { maximumFractionDigits: 2 })}%</strong>
+                </div>
+                <div className="detail-row">
+                  <span>Có mặt</span>
+                  <strong>{attendanceScore.presentCount} buổi</strong>
+                </div>
+                <div className="detail-row">
+                  <span>Đi muộn</span>
+                  <strong>{attendanceScore.lateCount} buổi</strong>
+                </div>
+                <div className="detail-row">
+                  <span>Nghỉ có phép</span>
+                  <strong>{attendanceScore.excusedCount} buổi</strong>
+                </div>
+                <div className="detail-row">
+                  <span>Vắng</span>
+                  <strong>{attendanceScore.absentCount} buổi</strong>
+                </div>
+                <div className="detail-row">
+                  <span>Tập chéo</span>
+                  <strong>{attendanceScore.crossLocationAttendanceCount} buổi</strong>
+                </div>
+                <div className="detail-row">
+                  <span>Buổi tập thêm</span>
+                  <strong>{attendanceScore.extraAttendanceCount} buổi</strong>
+                </div>
+              </>
+            )}
           </section>
 
           {canTransitionToYellowBelt && (
