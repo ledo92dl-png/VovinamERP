@@ -1,4 +1,4 @@
-﻿import {
+import {
   createBrowserRouter,
   RouterProvider,
 } from 'react-router-dom'
@@ -10,6 +10,9 @@ import StudentsPage from './pages/StudentsPage'
 import './App.css'
 import NewStudentPage from './pages/NewStudentPage'
 import EditStudentPage from './pages/EditStudentPage'
+import BeltExamsPage from './pages/BeltExamsPage'
+import BeltExamDetailPage from './pages/BeltExamDetailPage'
+import BeltExamStudentResultPage from './pages/BeltExamStudentResultPage'
 
 const router = createBrowserRouter([
   {
@@ -36,6 +39,18 @@ const router = createBrowserRouter([
   path: 'students/:studentId',
   element: <StudentDetailPage />,
 },
+      {
+        path: 'belt-exams',
+        element: <BeltExamsPage />,
+      },
+      {
+        path: 'belt-exams/:beltExamId',
+        element: <BeltExamDetailPage />,
+      },
+      {
+        path: 'belt-exams/:beltExamId/results/:studentResultId',
+        element: <BeltExamStudentResultPage />,
+      },
       {
         path: 'attendance',
         element: (

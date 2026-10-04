@@ -1,8 +1,9 @@
-﻿import {
+import {
   Banknote,
   BookOpen,
   ClipboardCheck,
   GraduationCap,
+  Medal,
   House,
   ReceiptText,
   UsersRound,
@@ -16,6 +17,7 @@ const navigation = [
   { to: '/tuition', label: 'Học phí', icon: Banknote },
   { to: '/receipts', label: 'Phiếu thu', icon: ReceiptText },
   { to: '/classes', label: 'Lớp học', icon: BookOpen },
+  { to: '/belt-exams', label: 'Kỳ thi đai', icon: Medal },
 ]
 
 export default function AppLayout() {

@@ -944,3 +944,602 @@
     grid-column: auto;
   }
 }
+/* Belt exam management */
+
+.belt-exam-list,
+.belt-exam-results,
+.belt-exam-subjects {
+  display: grid;
+  gap: 12px;
+}
+
+.belt-exam-card,
+.belt-exam-result-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #fff;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.belt-exam-card:hover,
+.belt-exam-result-row:hover {
+  border-color: #b8c5d8;
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.08);
+  transform: translateY(-1px);
+}
+
+.belt-exam-date {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: #eef4ff;
+  color: var(--primary);
+}
+
+.belt-exam-main,
+.belt-exam-result-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.belt-exam-main strong,
+.belt-exam-main span,
+.belt-exam-main small,
+.belt-exam-result-main strong,
+.belt-exam-result-main span,
+.belt-exam-result-main small {
+  display: block;
+}
+
+.belt-exam-main strong,
+.belt-exam-result-main strong {
+  color: var(--text);
+  font-size: 16px;
+}
+
+.belt-exam-main span,
+.belt-exam-result-main span {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.belt-exam-main small,
+.belt-exam-result-main small {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.belt-exam-rank {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 11px;
+  border-radius: 999px;
+  background: #f2f4f7;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.belt-exam-chevron {
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+
+.belt-exam-detail-header {
+  margin-top: 14px;
+}
+
+.belt-exam-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.belt-exam-summary .info-card {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-width: 0;
+}
+
+.belt-exam-summary .info-card > svg {
+  color: var(--primary);
+}
+
+.belt-exam-summary .info-card span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.belt-exam-summary .info-card strong {
+  overflow-wrap: anywhere;
+  font-size: 15px;
+}
+
+.belt-exam-note {
+  margin-top: 18px;
+}
+
+.belt-exam-note p {
+  margin: 6px 0 0;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.belt-exam-section {
+  margin-top: 26px;
+}
+
+.section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.section-heading h2 {
+  margin: 5px 0 0;
+  font-size: 20px;
+}
+
+.belt-exam-subject {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.belt-exam-subject > span {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #eef4ff;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.belt-exam-subject > div {
+  min-width: 0;
+}
+
+.belt-exam-subject strong,
+.belt-exam-subject small {
+  display: block;
+}
+
+.belt-exam-subject small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.belt-exam-result-row > svg {
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+
+.compact-state {
+  min-height: auto;
+  padding: 24px;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.back-link:hover {
+  color: var(--primary);
+}
+
+@media (max-width: 900px) {
+  .belt-exam-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .belt-exam-card {
+    align-items: flex-start;
+    padding: 14px;
+  }
+
+  .belt-exam-rank {
+    display: none;
+  }
+
+  .belt-exam-date {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+  }
+
+  .belt-exam-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .belt-exam-summary .info-card {
+    padding: 14px;
+  }
+
+  .belt-exam-result-row {
+    align-items: flex-start;
+    padding: 14px;
+  }
+
+  .belt-exam-result-row .student-avatar {
+    flex: 0 0 auto;
+  }
+
+  .belt-exam-subject {
+    padding: 13px 14px;
+  }
+
+  .section-heading h2 {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 420px) {
+  .belt-exam-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Belt exam list card layout fix */
+
+.belt-exam-date {
+  flex: 0 0 112px;
+  width: auto;
+  height: auto;
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px;
+  text-align: center;
+}
+
+.belt-exam-date span {
+  display: block;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.belt-exam-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+}
+
+.belt-exam-main > strong {
+  margin-bottom: 1px;
+}
+
+.belt-exam-main > span:not(.belt-exam-rank) {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 0;
+}
+
+.belt-exam-main > span:not(.belt-exam-rank) svg {
+  flex: 0 0 auto;
+}
+
+.belt-exam-main .belt-exam-rank {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  width: auto;
+  max-width: 100%;
+  gap: 7px;
+  margin-top: 0;
+}
+
+.belt-exam-main .belt-exam-rank svg {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 700px) {
+  .belt-exam-date {
+    flex-basis: 82px;
+    width: auto;
+    height: auto;
+    min-height: 64px;
+    padding: 8px;
+  }
+
+  .belt-exam-date span {
+    font-size: 12px;
+  }
+
+  .belt-exam-main .belt-exam-rank {
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 420px) {
+  .belt-exam-card {
+    position: relative;
+  }
+
+  .belt-exam-date {
+    flex-basis: 76px;
+  }
+
+  .belt-exam-chevron {
+    position: absolute;
+    top: 16px;
+    right: 12px;
+  }
+
+  .belt-exam-main {
+    padding-right: 20px;
+  }
+}
+
+/* Belt exam student score sheet */
+
+.belt-exam-score-list {
+  display: grid;
+  gap: 12px;
+}
+
+.belt-exam-score-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.belt-exam-score-order {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #eef4ff;
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.belt-exam-score-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.belt-exam-score-main strong,
+.belt-exam-score-main span {
+  display: block;
+}
+
+.belt-exam-score-main strong {
+  font-size: 15px;
+}
+
+.belt-exam-score-main span {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.belt-exam-score-value {
+  flex: 0 0 auto;
+  min-width: 72px;
+  text-align: right;
+}
+
+.belt-exam-score-value span,
+.belt-exam-score-value strong {
+  display: block;
+}
+
+.belt-exam-score-value span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.belt-exam-score-value strong {
+  margin-top: 4px;
+  font-size: 22px;
+}
+
+.belt-exam-total-card {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.belt-exam-total-card > div {
+  padding: 18px;
+  text-align: center;
+}
+
+.belt-exam-total-card > div + div {
+  border-left: 1px solid var(--border);
+}
+
+.belt-exam-total-card span,
+.belt-exam-total-card strong {
+  display: block;
+}
+
+.belt-exam-total-card span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.belt-exam-total-card strong {
+  margin-top: 7px;
+  font-size: 20px;
+}
+
+@media (max-width: 700px) {
+  .belt-exam-score-row {
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .belt-exam-score-order {
+    width: 34px;
+    height: 34px;
+  }
+
+  .belt-exam-score-value {
+    min-width: 52px;
+  }
+
+  .belt-exam-score-value strong {
+    font-size: 20px;
+  }
+
+  .belt-exam-total-card {
+    grid-template-columns: 1fr;
+  }
+
+  .belt-exam-total-card > div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    text-align: left;
+  }
+
+  .belt-exam-total-card > div + div {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .belt-exam-total-card strong {
+    margin-top: 0;
+  }
+}
+/* Belt rank recognition and document */
+.belt-recognition-form {
+  display: grid;
+  gap: 18px;
+}
+
+.belt-recognition-form label {
+  display: grid;
+  gap: 8px;
+}
+
+.belt-rank-document-card {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  padding: 24px;
+  border: 1px solid #dfe6f1;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(15, 43, 91, 0.06);
+}
+
+.belt-rank-document-card > div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.belt-rank-document-card span {
+  color: #66758f;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.belt-rank-document-card strong {
+  color: #0d1b36;
+  font-size: 1rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.belt-rank-document-note {
+  grid-column: 1 / -1;
+  padding-top: 18px;
+  border-top: 1px solid #e6ebf3;
+}
+
+.belt-rank-document-note p {
+  margin: 0;
+  color: #33415c;
+  line-height: 1.65;
+}
+
+@media (max-width: 760px) {
+  .belt-rank-document-card {
+    grid-template-columns: 1fr;
+    gap: 18px;
+    padding: 20px;
+  }
+
+  .belt-rank-document-note {
+    grid-column: auto;
+  }
+}
+.belt-rank-document-scan {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding-top: 18px;
+  border-top: 1px solid #e6ebf3;
+}
+
+.belt-rank-document-scan .form-error {
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .belt-rank-document-scan {
+    grid-column: auto;
+  }
+}
