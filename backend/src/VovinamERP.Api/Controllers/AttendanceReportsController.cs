@@ -131,6 +131,24 @@ public async Task<ActionResult<GetCrossLocationAttendanceDetailsResult>>
             query,
             cancellationToken);
 
-        return Ok(result);
+        if (result.IsFailure || result.Value is null)
+        {
+            if (result.Error.Code == "ATTENDANCE_043")
+            {
+                return NotFound(new
+                {
+                    Code = result.Error.Code,
+                    Message = result.Error.Message
+                });
+            }
+
+            return BadRequest(new
+            {
+                Code = result.Error.Code,
+                Message = result.Error.Message
+            });
+        }
+
+        return Ok(result.Value);
     }
 }
