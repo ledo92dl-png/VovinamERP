@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using VovinamERP.Application.Attendance.Common;
+using VovinamERP.Application.Attendance.Scoring;
 using VovinamERP.Application.Attendance.GetCrossLocationByOrganizationReport;
 using VovinamERP.Application.Attendance.GetCrossLocationByStudentReport;
 using VovinamERP.Application.Attendance.GetCrossLocationAttendanceDetails;
@@ -575,6 +576,106 @@ public async Task<IReadOnlyList<CrossLocationOrganizationItem>>
         .ToList();
 }
 
+    public async Task<StudentAttendanceScoringData>
+        GetStudentAttendanceScoringDataAsync(
+            Guid tenantId,
+            Guid studentId,
+            DateOnly fromDate,
+            DateOnly toDate,
+            CancellationToken cancellationToken = default)
+    {
+        if (fromDate > toDate)
+            throw new ArgumentException(
+                "From date cannot be after to date.");
+
+        var eligibleSessionRows = await (
+            from enrollment in _context.Set<StudentClassEnrollment>()
+                .AsNoTracking()
+            join session in _context.Set<TrainingSession>()
+                .AsNoTracking()
+                on enrollment.TrainingClassId
+                equals session.TrainingClassId
+            where
+                enrollment.TenantId == tenantId &&
+                session.TenantId == tenantId &&
+                enrollment.StudentId == studentId &&
+                !enrollment.IsArchived &&
+                !session.IsArchived &&
+                session.Status == TrainingSessionStatus.Closed &&
+                session.SessionDate >= fromDate &&
+                session.SessionDate <= toDate &&
+                session.SessionDate >= enrollment.StartDate &&
+                (!enrollment.EndDate.HasValue ||
+                 session.SessionDate <= enrollment.EndDate.Value)
+            select new
+            {
+                TrainingSessionId = session.Id,
+                session.SessionDate
+            })
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        var eligibleSessions = eligibleSessionRows
+            .Select(x => new EligibleAttendanceSessionItem(
+                x.TrainingSessionId,
+                x.SessionDate))
+            .ToList();
+
+        var attendanceRows = await (
+            from detail in _context.Set<AttendanceDetail>()
+                .AsNoTracking()
+            join record in _context.Set<AttendanceRecord>()
+                .AsNoTracking()
+                on detail.AttendanceRecordId equals record.Id
+            join session in _context.Set<TrainingSession>()
+                .AsNoTracking()
+                on record.TrainingSessionId equals session.Id
+            where
+                detail.TenantId == tenantId &&
+                record.TenantId == tenantId &&
+                session.TenantId == tenantId &&
+                detail.StudentId == studentId &&
+                !detail.IsArchived &&
+                !record.IsArchived &&
+                !session.IsArchived &&
+                session.Status == TrainingSessionStatus.Closed &&
+                session.SessionDate >= fromDate &&
+                session.SessionDate <= toDate
+            select new
+            {
+                TrainingSessionId = session.Id,
+                session.SessionDate,
+                detail.Status,
+                detail.IsCrossLocation
+            })
+            .ToListAsync(cancellationToken);
+
+        var attendanceSessions = attendanceRows
+            .GroupBy(x => x.TrainingSessionId)
+            .Select(group =>
+            {
+                var item = group
+                    .OrderByDescending(x => x.Status == AttendanceStatus.Present)
+                    .ThenByDescending(x => x.Status == AttendanceStatus.Late)
+                    .First();
+
+                return new StudentAttendanceSessionItem(
+                    item.TrainingSessionId,
+                    item.SessionDate,
+                    item.Status,
+                    group.Any(x => x.IsCrossLocation));
+            })
+            .OrderBy(x => x.SessionDate)
+            .ThenBy(x => x.TrainingSessionId)
+            .ToList();
+
+        return new StudentAttendanceScoringData(
+            eligibleSessions
+                .OrderBy(x => x.SessionDate)
+                .ThenBy(x => x.TrainingSessionId)
+                .ToList(),
+            attendanceSessions);
+    }
     public async Task<int> CountStudentAttendancesByMonthAsync(
     Guid tenantId,
     Guid studentId,

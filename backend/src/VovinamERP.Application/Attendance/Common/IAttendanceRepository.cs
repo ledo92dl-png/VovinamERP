@@ -4,6 +4,8 @@ using VovinamERP.Domain.Organizations;
 using VovinamERP.Application.Attendance.GetCrossLocationByStudentReport;
 using VovinamERP.Application.Attendance.GetCrossLocationAttendanceDetails;
 
+using VovinamERP.Application.Attendance.Scoring;
+
 namespace VovinamERP.Application.Attendance.Common;
 
 public interface IAttendanceRepository
@@ -82,4 +84,11 @@ Task<(int TotalAttendances, int CrossLocationAttendances)>
     int month,
     CancellationToken cancellationToken = default);
 
+    Task<StudentAttendanceScoringData>
+    GetStudentAttendanceScoringDataAsync(
+        Guid tenantId,
+        Guid studentId,
+        DateOnly fromDate,
+        DateOnly toDate,
+        CancellationToken cancellationToken = default);
 }
