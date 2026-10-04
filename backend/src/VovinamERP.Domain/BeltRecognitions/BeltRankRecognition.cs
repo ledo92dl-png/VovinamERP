@@ -75,7 +75,7 @@ public sealed class BeltRankRecognition : AggregateRoot
                 BeltRankRecognitionErrors.BeltExamStudentResultRequired);
         }
 
-        if (source == BeltRankRecognitionSource.AgeTransition &&
+        if (source != BeltRankRecognitionSource.BeltExam &&
             beltExamStudentResultId.HasValue)
         {
             return Result<BeltRankRecognition>.Failure(

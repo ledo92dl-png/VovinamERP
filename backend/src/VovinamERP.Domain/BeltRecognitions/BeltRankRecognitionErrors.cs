@@ -27,5 +27,5 @@ public static class BeltRankRecognitionErrors
     public static readonly Error BeltExamStudentResultNotAllowed =
         new(
             "BELT_RECOGNITION_007",
-            "Belt exam student result is not allowed for an age transition.");
+            "Belt exam student result is only allowed for an exam recognition.");
 }

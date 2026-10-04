@@ -184,4 +184,50 @@ public sealed class BeltRankRecognitionTests
             "BELT_RECOGNITION_007",
             result.Error.Code);
     }
+
+    [Fact]
+    public void Create_ManualRecognition_WithoutExamResult_ShouldSucceed()
+    {
+        var recognitionDate = new DateOnly(2026, 10, 4);
+
+        var result = BeltRankRecognition.Create(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            recognitionDate,
+            BeltRankRecognitionSource.Manual,
+            null,
+            "Manual recognition");
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value);
+        Assert.Equal(
+            BeltRankRecognitionSource.Manual,
+            result.Value.Source);
+        Assert.Equal(
+            recognitionDate,
+            result.Value.RecognitionDate);
+        Assert.Null(result.Value.BeltExamStudentResultId);
+        Assert.Equal(
+            "Manual recognition",
+            result.Value.Note);
+    }
+
+    [Fact]
+    public void Create_ManualRecognition_WithExamResult_ShouldFail()
+    {
+        var result = BeltRankRecognition.Create(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            new DateOnly(2026, 10, 4),
+            BeltRankRecognitionSource.Manual,
+            Guid.NewGuid(),
+            null);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(
+            "BELT_RECOGNITION_007",
+            result.Error.Code);
+    }
 }

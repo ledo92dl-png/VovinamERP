@@ -1,3 +1,4 @@
+using VovinamERP.Application.BeltRecognitions.CreateManualBeltRecognition;
 using VovinamERP.Application.BeltRecognitions.GetStudentBeltRecognitions;
 using VovinamERP.Application.Students.RecordStudentBeltResult;
 using VovinamERP.Application.Students.GetStudentBeltHistory;
@@ -96,6 +97,38 @@ public sealed class StudentsController : ControllerBase
         return Ok(new
         {
             StudentBeltHistoryId = result.Value
+        });
+    }
+    [HttpPost("{studentId:guid}/belt-recognitions")]
+    public async Task<IActionResult> CreateManualBeltRecognition(
+        Guid studentId,
+        [FromBody] CreateManualBeltRecognitionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new CreateManualBeltRecognitionCommand(
+            request.TenantId,
+            studentId,
+            request.BeltRankId,
+            request.RecognitionDate,
+            request.Note,
+            request.UserId);
+
+        var result = await _sender.Send(
+            command,
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return BadRequest(new
+            {
+                Code = result.Error.Code,
+                Message = result.Error.Message
+            });
+        }
+
+        return Ok(new
+        {
+            BeltRankRecognitionId = result.Value
         });
     }
     [HttpGet("{studentId:guid}/belt-recognitions")]
