@@ -5,6 +5,7 @@ using VovinamERP.Application.Attendance.GetCrossLocationByOrganizationReport;
 using VovinamERP.Application.Attendance.GetCrossLocationByStudentReport;
 using VovinamERP.Application.Attendance.GetCrossLocationAttendanceDetails;
 using VovinamERP.Application.Attendance.GetStudentAttendanceScore;
+using VovinamERP.Application.Attendance.GetStudentAttendanceScoreHistory;
 
 namespace VovinamERP.Api.Controllers;
 
@@ -112,6 +113,45 @@ public async Task<ActionResult<GetCrossLocationAttendanceDetailsResult>>
     return Ok(result);
 }
 
+    [HttpGet("students/{studentId:guid}/score-history")]
+    public async Task<ActionResult<GetStudentAttendanceScoreHistoryResult>>
+        GetStudentAttendanceScoreHistory(
+            [FromRoute] Guid studentId,
+            [FromQuery] Guid tenantId,
+            [FromQuery] DateOnly fromDate,
+            [FromQuery] DateOnly toDate,
+            CancellationToken cancellationToken)
+    {
+        var query = new GetStudentAttendanceScoreHistoryQuery(
+            tenantId,
+            studentId,
+            fromDate,
+            toDate);
+
+        var result = await _sender.Send(
+            query,
+            cancellationToken);
+
+        if (result.IsFailure || result.Value is null)
+        {
+            if (result.Error.Code == "ATTENDANCE_043")
+            {
+                return NotFound(new
+                {
+                    Code = result.Error.Code,
+                    Message = result.Error.Message
+                });
+            }
+
+            return BadRequest(new
+            {
+                Code = result.Error.Code,
+                Message = result.Error.Message
+            });
+        }
+
+        return Ok(result.Value);
+    }
     [HttpGet("students/{studentId:guid}/score")]
     public async Task<ActionResult<GetStudentAttendanceScoreResult>>
         GetStudentAttendanceScore(
