@@ -93,6 +93,17 @@ public sealed class BeltRankDocumentsController : ControllerBase
 
         var file = result.Value;
 
+        if (file is null)
+        {
+            return StatusCode(
+                500,
+                new
+                {
+                    Code = "DocumentScan.InvalidResult",
+                    Message = "Document scan result is unexpectedly empty."
+                });
+        }
+
         return File(
             file.Content,
             file.ContentType,

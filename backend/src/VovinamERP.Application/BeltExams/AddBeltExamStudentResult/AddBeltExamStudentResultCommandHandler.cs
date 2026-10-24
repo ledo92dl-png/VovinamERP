@@ -81,7 +81,9 @@ public sealed class AddBeltExamStudentResultCommandHandler
         if (createResult.IsFailure)
             return Result<Guid>.Failure(createResult.Error);
 
-        var beltExamStudentResult = createResult.Value;
+        var beltExamStudentResult = createResult.Value
+            ?? throw new InvalidOperationException(
+                "BeltExamStudentResult.Create returned success with a null value.");
 
         await _resultRepository.AddAsync(
             beltExamStudentResult,

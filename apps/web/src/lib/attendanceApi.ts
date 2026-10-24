@@ -16,6 +16,21 @@ export type StudentAttendanceScore = {
   score: number | null
 }
 
+export type StudentAttendanceScoreMonth = Omit<
+  StudentAttendanceScore,
+  'studentId'
+> & {
+  year: number
+  month: number
+}
+
+export type StudentAttendanceScoreHistory = {
+  studentId: string
+  fromDate: string
+  toDate: string
+  months: StudentAttendanceScoreMonth[]
+}
+
 export function getStudentAttendanceScore(
   studentId: string,
   tenantId: string,
@@ -31,6 +46,25 @@ export function getStudentAttendanceScore(
 
   return apiGet<StudentAttendanceScore>(
     `/api/attendance-reports/students/${encodeURIComponent(studentId)}/score?${params.toString()}`,
+    signal,
+  )
+}
+
+export function getStudentAttendanceScoreHistory(
+  studentId: string,
+  tenantId: string,
+  fromDate: string,
+  toDate: string,
+  signal?: AbortSignal,
+): Promise<StudentAttendanceScoreHistory> {
+  const params = new URLSearchParams({
+    tenantId,
+    fromDate,
+    toDate,
+  })
+
+  return apiGet<StudentAttendanceScoreHistory>(
+    `/api/attendance-reports/students/${encodeURIComponent(studentId)}/score-history?${params.toString()}`,
     signal,
   )
 }

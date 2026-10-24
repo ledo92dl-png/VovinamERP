@@ -93,7 +93,9 @@ public sealed class AddBeltExamScoreCommandHandler
             return Result<Guid>.Failure(createResult.Error);
         }
 
-        var score = createResult.Value;
+        var score = createResult.Value
+            ?? throw new InvalidOperationException(
+                "BeltExamScore.Create returned success with a null value.");
 
         await _scoreRepository.AddAsync(
             score,

@@ -175,7 +175,9 @@ public sealed class TransitionJuniorYellowBeltCommandHandler
         }
 
         await _recognitionRepository.AddAsync(
-            recognitionResult.Value,
+            recognitionResult.Value
+                ?? throw new InvalidOperationException(
+                    "BeltRankRecognition.Create returned success with a null value."),
             cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);

@@ -26,6 +26,7 @@ import {
 import type {
   BeltRankRecognition,
 } from '../lib/beltExamsApi'
+import StudentAttendanceHistory from '../components/StudentAttendanceHistory'
 import { getStudentAttendanceScore } from '../lib/attendanceApi'
 import type { StudentAttendanceScore } from '../lib/attendanceApi'
 import type { BeltRank, Student } from '../lib/types'
@@ -597,6 +598,10 @@ export default function StudentDetailPage() {
             )}
           </section>
 
+          <StudentAttendanceHistory
+            studentId={student.studentId}
+            tenantId={student.tenantId}
+          />
           {canTransitionToYellowBelt && (
             <section className="detail-card">
               <div className="form-section-heading">

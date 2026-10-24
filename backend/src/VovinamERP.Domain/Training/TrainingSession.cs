@@ -82,6 +82,12 @@ public sealed class TrainingSession : AggregateRoot
         if (IsArchived)
             return Result.Failure(TrainingErrors.AlreadyArchived);
 
+        if (Status == TrainingSessionStatus.Closed)
+            return Result.Failure(TrainingErrors.SessionAlreadyClosed);
+
+        if (Status != TrainingSessionStatus.Opened)
+            return Result.Failure(TrainingErrors.SessionNotOpened);
+
         Status = TrainingSessionStatus.Closed;
         MarkUpdated(null);
         RaiseDomainEvent(new TrainingSessionClosedEvent(Id));
