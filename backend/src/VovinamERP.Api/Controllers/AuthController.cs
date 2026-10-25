@@ -1,4 +1,5 @@
-﻿using System.IdentityModel.Tokens.Jwt;
+using Microsoft.AspNetCore.Authorization;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
@@ -27,6 +28,7 @@ public sealed class AuthController : ControllerBase
         _configuration = configuration;
     }
 
+    [AllowAnonymous]
     [HttpPost("login")]
     public async Task<IActionResult> Login(
         [FromBody] LoginRequest request)
